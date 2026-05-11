@@ -1,55 +1,87 @@
-# HotelMaximosBack
+# Hotel Maximos Back
 
-Backend do sistema Hotel Maximos.
+Backend do sistema de gestao do Hotel Maximos, criado com Node.js 22, TypeScript, Fastify, Prisma, PostgreSQL, Zod, Swagger e Vitest.
 
-## Stack
+## Requisitos
 
-- .NET 10
-- ASP.NET Core Web API
-- PostgreSQL
-- Entity Framework Core
-- Serilog
-- JWT
-- BCrypt
-- Swagger/OpenAPI
-- Docker Compose para PostgreSQL local
+- Node.js 22+
+- npm
+- Docker e Docker Compose
+- DBeaver ou outro cliente PostgreSQL opcional
 
-## Requisitos locais
+## Variaveis de ambiente
 
-- .NET SDK 10
-- Docker Desktop
-- DBeaver ou TablePlus para manusear o banco
+Crie um arquivo `.env` localmente, sem commitar, com as chaves abaixo:
+
+```txt
+NODE_ENV=development
+HOST=0.0.0.0
+PORT=3333
+DATABASE_URL=postgresql://hotel_maximos:hotel_maximos@localhost:5432/hotel_maximos
+JWT_SECRET=troque-por-um-segredo-local-com-32-caracteres
+JWT_EXPIRES_IN=15m
+```
+
+Arquivos `.env`, `.env.*` e `.env.example` ficam ignorados pelo Git por decisao do projeto.
 
 ## Banco local
 
-```bash
+Suba o PostgreSQL:
+
+```sh
 docker compose up -d
 ```
 
-Conexao local:
+Conexao sugerida no DBeaver:
 
-```txt
-Host: localhost
-Port: 5432
-Database: hotel_maximos
-User: hotel_user
-Password: hotel_password
+- Host: `localhost`
+- Port: `5432`
+- Database: `hotel_maximos`
+- User: `hotel_maximos`
+- Password: `hotel_maximos`
+
+## Comandos
+
+Instale dependencias:
+
+```sh
+npm install
 ```
 
-## API local
+Gere o Prisma Client:
 
-```bash
-dotnet restore
-dotnet run --project src/HotelMaximos.Api/HotelMaximos.Api.csproj
+```sh
+npm run prisma:generate
 ```
 
-Swagger:
+Rode migrations quando houver modelos:
 
-```txt
-https://localhost:<porta>/swagger
+```sh
+npm run prisma:migrate
 ```
 
-## Connection string
+Execute em desenvolvimento:
 
-Use `.env.example` como referencia. Nao versionar credenciais reais.
-Repo do Sistema de Gestão do Hotel Maximos
+```sh
+npm run dev
+```
+
+Valide a sprint:
+
+```sh
+npm run typecheck
+npm run build
+npm run test
+docker compose config
+```
+
+## Endpoints base
+
+- Health: `GET /api/health`
+- Swagger UI: `GET /docs`
+
+## Contratos compartilhados
+
+- Erros seguem o formato `{ error: { code, message, traceId, details? } }`.
+- Respostas paginadas devem usar `{ data, meta: { page, pageSize, total, totalPages } }`.
+- Logs usam o logger do Fastify/Pino e redigem tokens, senhas e headers de autorizacao.

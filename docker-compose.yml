@@ -4,18 +4,18 @@ services:
     container_name: hotel-maximos-postgres
     restart: unless-stopped
     environment:
+      POSTGRES_USER: hotel_maximos
+      POSTGRES_PASSWORD: hotel_maximos
       POSTGRES_DB: hotel_maximos
-      POSTGRES_USER: hotel_user
-      POSTGRES_PASSWORD: hotel_password
     ports:
       - "5432:5432"
     volumes:
-      - hotel_maximos_postgres:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U hotel_user -d hotel_maximos"]
+      test: ["CMD-SHELL", "pg_isready -U hotel_maximos -d hotel_maximos"]
       interval: 10s
       timeout: 5s
       retries: 5
 
 volumes:
-  hotel_maximos_postgres:
+  postgres_data:
