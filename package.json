@@ -11,8 +11,8 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run test/health.test.ts --environment node --globals false",
-    "test:watch": "vitest test/health.test.ts --environment node --globals false",
+    "test": "vitest run --environment node --globals false",
+    "test:watch": "vitest --environment node --globals false",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio"

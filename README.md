@@ -80,6 +80,12 @@ docker compose config
 - Health: `GET /api/health`
 - Swagger UI: `GET /docs`
 
+## Seed local
+
+Em `NODE_ENV=development`, a API cria automaticamente o usuario inicial `admin` / `Administrador Local` com senha `Admin123!` apenas quando o banco nao tem usuarios.
+
+Esse seed e local/MVP-only e deve ser removido ou substituido por provisionamento seguro antes de producao.
+
 ## Contratos compartilhados
 
 - Erros seguem o formato `{ error: { code, message, traceId, details? } }`.
