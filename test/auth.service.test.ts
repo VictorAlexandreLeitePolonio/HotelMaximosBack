@@ -134,6 +134,18 @@ describe("AuthService", () => {
     });
   });
 
+  it("blocks inactive user login with AUTH_003", async () => {
+    const repository = new FakeAuthRepository();
+    repository.users.push(await createUser({ ativo: false }));
+
+    await expect(
+      new AuthService(repository).login({ login: "admin", senha: "Admin123!" })
+    ).rejects.toMatchObject<AppError>({
+      code: "AUTH_003",
+      statusCode: 401
+    });
+  });
+
   it("rotates refresh tokens and revokes the old token", async () => {
     const repository = new FakeAuthRepository();
     repository.users.push(await createUser());
@@ -163,6 +175,31 @@ describe("AuthService", () => {
     expect(repository.refreshTokens.every((token) => token.revogadoEm)).toBe(true);
   });
 
+  it("rejects invalid refresh tokens with AUTH_004", async () => {
+    const repository = new FakeAuthRepository();
+    repository.users.push(await createUser());
+
+    await expect(
+      new AuthService(repository).refresh({ refreshToken: "token-inexistente" })
+    ).rejects.toMatchObject({
+      code: "AUTH_004",
+      statusCode: 401
+    });
+  });
+
+  it("rejects expired refresh tokens with AUTH_004", async () => {
+    const repository = new FakeAuthRepository();
+    repository.users.push(await createUser());
+    const service = new AuthService(repository);
+    const login = await service.login({ login: "admin", senha: "Admin123!" });
+    repository.refreshTokens[0].expiraEm = new Date(Date.now() - 1000);
+
+    await expect(service.refresh({ refreshToken: login.refreshToken })).rejects.toMatchObject({
+      code: "AUTH_004",
+      statusCode: 401
+    });
+  });
+
   it("invalidates refresh token on logout", async () => {
     const repository = new FakeAuthRepository();
     repository.users.push(await createUser());
@@ -185,5 +222,20 @@ describe("AuthService", () => {
 
     expect(repository.users[0].deveAlterarSenha).toBe(false);
     await expect(verifyPassword("MinhaSenha123!", repository.users[0].senhaHash)).resolves.toBe(true);
+  });
+
+  it("rejects password change when current password is invalid", async () => {
+    const repository = new FakeAuthRepository();
+    repository.users.push(await createUser());
+
+    await expect(
+      new AuthService(repository).changePassword(1, {
+        senhaAtual: "SenhaErrada123!",
+        novaSenha: "MinhaSenha123!"
+      })
+    ).rejects.toMatchObject({
+      code: "AUTH_001",
+      statusCode: 400
+    });
   });
 });
