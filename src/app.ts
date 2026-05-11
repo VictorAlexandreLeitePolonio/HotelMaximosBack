@@ -12,6 +12,7 @@ import { env } from "./config/env.js";
 import { registerErrorHandler } from "./shared/errors/error-handler.js";
 import { authRoutes } from "./modules/auth/auth.routes.js";
 import { healthRoutes } from "./modules/health/health.routes.js";
+import { usersRoutes } from "./modules/users/users.routes.js";
 
 export async function buildApp(): Promise<FastifyInstance> {
   const app = Fastify({
@@ -51,7 +52,8 @@ export async function buildApp(): Promise<FastifyInstance> {
       },
       tags: [
         { name: "Auth", description: "Endpoints de autenticacao." },
-        { name: "Health", description: "Endpoints de verificação da API." }
+        { name: "Health", description: "Endpoints de verificação da API." },
+        { name: "Users", description: "Endpoints de gestao de usuarios." }
       ],
       components: {}
     },
@@ -66,6 +68,7 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   await app.register(healthRoutes, { prefix: "/api" });
   await app.register(authRoutes, { prefix: "/api/auth" });
+  await app.register(usersRoutes, { prefix: "/api/users" });
 
   return app;
 }
