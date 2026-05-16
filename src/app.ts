@@ -40,6 +40,26 @@ export async function buildApp(): Promise<FastifyInstance> {
     }
   }).withTypeProvider<ZodTypeProvider>();
 
+  app.addHook("onRequest", async (request, reply) => {
+    const origin = request.headers.origin;
+
+    if (origin) {
+      reply.header("Access-Control-Allow-Origin", origin);
+      reply.header("Vary", "Origin");
+    }
+
+    reply.header("Access-Control-Allow-Credentials", "true");
+    reply.header("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS");
+    reply.header(
+      "Access-Control-Allow-Headers",
+      "Origin, X-Requested-With, Content-Type, Accept, Authorization, x-trace-id"
+    );
+
+    if (request.method === "OPTIONS") {
+      return reply.code(204).send();
+    }
+  });
+
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
 
