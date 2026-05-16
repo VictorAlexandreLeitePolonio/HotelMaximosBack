@@ -12,6 +12,14 @@ enum PerfilUsuario {
   Recepcionista
 }
 
+enum StatusOperacionalFlat {
+  Livre
+  Reservado
+  Ocupado
+  AguardandoLimpeza
+  Manutencao
+}
+
 model HospedeResponsavel {
   id             Int                    @id @default(autoincrement())
   nomeCompleto   String
@@ -30,6 +38,61 @@ model HospedeResponsavel {
   @@index([ativo])
   @@index([nomeCompleto])
   @@map("hospedes_responsaveis")
+}
+
+model CategoriaFlat {
+  id              Int                @id @default(autoincrement())
+  nome            String
+  nomeNormalizado String             @unique
+  ativo           Boolean            @default(true)
+  criadoEm        DateTime           @default(now())
+  atualizadoEm    DateTime           @updatedAt
+  subcategorias   SubcategoriaFlat[]
+  flats           Flat[]
+
+  @@index([ativo])
+  @@index([nome])
+  @@map("categorias_flat")
+}
+
+model SubcategoriaFlat {
+  id              Int                @id @default(autoincrement())
+  categoriaId     Int
+  categoria       CategoriaFlat      @relation(fields: [categoriaId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  nome            String
+  nomeNormalizado String
+  precoBase       Decimal            @db.Decimal(10, 2)
+  capacidadeMaxima Int
+  ativo           Boolean            @default(true)
+  criadoEm        DateTime           @default(now())
+  atualizadoEm    DateTime           @updatedAt
+  flats           Flat[]
+
+  @@unique([categoriaId, nomeNormalizado])
+  @@index([categoriaId])
+  @@index([ativo])
+  @@index([nome])
+  @@map("subcategorias_flat")
+}
+
+model Flat {
+  id                 Int                   @id @default(autoincrement())
+  numero             String
+  numeroNormalizado  String                @unique
+  categoriaId        Int
+  categoria          CategoriaFlat         @relation(fields: [categoriaId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  subcategoriaId     Int
+  subcategoria       SubcategoriaFlat      @relation(fields: [subcategoriaId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  statusOperacional  StatusOperacionalFlat @default(Livre)
+  ativo              Boolean               @default(true)
+  criadoEm           DateTime              @default(now())
+  atualizadoEm       DateTime              @updatedAt
+
+  @@index([categoriaId])
+  @@index([subcategoriaId])
+  @@index([statusOperacional])
+  @@index([ativo])
+  @@map("flats")
 }
 
 model HospedeAcompanhante {
