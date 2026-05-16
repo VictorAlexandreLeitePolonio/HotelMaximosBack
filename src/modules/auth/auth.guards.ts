@@ -34,7 +34,14 @@ export async function getAuthenticatedUser(
 }
 
 export function assertAdminUser(user: AuthUserRecord): void {
-  if (user.perfil !== "Admin") {
+  assertAllowedProfiles(user, ["Admin"]);
+}
+
+export function assertAllowedProfiles(
+  user: AuthUserRecord,
+  allowedProfiles: readonly AuthUserRecord["perfil"][]
+): void {
+  if (!allowedProfiles.includes(user.perfil)) {
     throw new AppError({
       code: "FORBIDDEN",
       message: "Acesso negado.",
