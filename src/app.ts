@@ -10,6 +10,7 @@ import {
 } from "fastify-type-provider-zod";
 import { env } from "./config/env.js";
 import { registerErrorHandler } from "./shared/errors/error-handler.js";
+import { authRoutes } from "./modules/auth/auth.routes.js";
 import { healthRoutes } from "./modules/health/health.routes.js";
 
 export async function buildApp(): Promise<FastifyInstance> {
@@ -48,7 +49,10 @@ export async function buildApp(): Promise<FastifyInstance> {
         description: "Backend do sistema de gestão do Hotel Maximos.",
         version: "0.1.0"
       },
-      tags: [{ name: "Health", description: "Endpoints de verificação da API." }],
+      tags: [
+        { name: "Auth", description: "Endpoints de autenticacao." },
+        { name: "Health", description: "Endpoints de verificação da API." }
+      ],
       components: {}
     },
     transform: jsonSchemaTransform
@@ -61,6 +65,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   registerErrorHandler(app);
 
   await app.register(healthRoutes, { prefix: "/api" });
+  await app.register(authRoutes, { prefix: "/api/auth" });
 
   return app;
 }
