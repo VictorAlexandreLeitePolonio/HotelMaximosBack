@@ -10,7 +10,14 @@ import {
 } from "fastify-type-provider-zod";
 import { env } from "./config/env.js";
 import { registerErrorHandler } from "./shared/errors/error-handler.js";
+import { authRoutes } from "./modules/auth/auth.routes.js";
+import { categoriasRoutes } from "./modules/categorias/categorias.routes.js";
+import { flatsRoutes } from "./modules/flats/flats.routes.js";
 import { healthRoutes } from "./modules/health/health.routes.js";
+import { hospedesRoutes } from "./modules/hospedes/hospedes.routes.js";
+import { reservasRoutes } from "./modules/reservas/reservas.routes.js";
+import { subcategoriasRoutes } from "./modules/subcategorias/subcategorias.routes.js";
+import { usersRoutes } from "./modules/users/users.routes.js";
 
 export async function buildApp(): Promise<FastifyInstance> {
   const app = Fastify({
@@ -38,6 +45,26 @@ export async function buildApp(): Promise<FastifyInstance> {
     }
   }).withTypeProvider<ZodTypeProvider>();
 
+  app.addHook("onRequest", async (request, reply) => {
+    const origin = request.headers.origin;
+
+    if (origin) {
+      reply.header("Access-Control-Allow-Origin", origin);
+      reply.header("Vary", "Origin");
+    }
+
+    reply.header("Access-Control-Allow-Credentials", "true");
+    reply.header("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS");
+    reply.header(
+      "Access-Control-Allow-Headers",
+      "Origin, X-Requested-With, Content-Type, Accept, Authorization, x-trace-id"
+    );
+
+    if (request.method === "OPTIONS") {
+      return reply.code(204).send();
+    }
+  });
+
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
 
@@ -48,7 +75,16 @@ export async function buildApp(): Promise<FastifyInstance> {
         description: "Backend do sistema de gestão do Hotel Maximos.",
         version: "0.1.0"
       },
-      tags: [{ name: "Health", description: "Endpoints de verificação da API." }],
+      tags: [
+        { name: "Auth", description: "Endpoints de autenticacao." },
+        { name: "Categorias", description: "Endpoints de gestao de categorias." },
+        { name: "Flats", description: "Endpoints de gestao de flats." },
+        { name: "Health", description: "Endpoints de verificação da API." },
+        { name: "Hospedes", description: "Endpoints de gestao de hospedes." },
+        { name: "Reservas", description: "Endpoints de disponibilidade e reservas." },
+        { name: "Subcategorias", description: "Endpoints de gestao de subcategorias, valores e capacidade." },
+        { name: "Users", description: "Endpoints de gestao de usuarios." }
+      ],
       components: {}
     },
     transform: jsonSchemaTransform
@@ -61,6 +97,13 @@ export async function buildApp(): Promise<FastifyInstance> {
   registerErrorHandler(app);
 
   await app.register(healthRoutes, { prefix: "/api" });
+  await app.register(authRoutes, { prefix: "/api/auth" });
+  await app.register(categoriasRoutes, { prefix: "/api/categorias" });
+  await app.register(flatsRoutes, { prefix: "/api/flats" });
+  await app.register(hospedesRoutes, { prefix: "/api/hospedes" });
+  await app.register(reservasRoutes, { prefix: "/api/reservas" });
+  await app.register(subcategoriasRoutes, { prefix: "/api/subcategorias" });
+  await app.register(usersRoutes, { prefix: "/api/users" });
 
   return app;
 }
