@@ -6,3 +6,42 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+enum PerfilUsuario {
+  Admin
+  Recepcionista
+}
+
+model Usuario {
+  id                Int             @id @default(autoincrement())
+  login             String
+  loginNormalizado  String          @unique
+  nomeCompleto      String
+  email             String?
+  senhaHash         String
+  perfil            PerfilUsuario
+  ativo             Boolean         @default(true)
+  deveAlterarSenha  Boolean         @default(true)
+  criadoEm          DateTime        @default(now())
+  atualizadoEm      DateTime        @updatedAt
+  refreshTokens     RefreshToken[]
+
+  @@map("usuarios")
+}
+
+model RefreshToken {
+  id                       Int       @id @default(autoincrement())
+  tokenHash                String    @unique
+  usuarioId                Int
+  usuario                  Usuario   @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  familiaSessaoId          String
+  expiraEm                 DateTime
+  revogadoEm               DateTime?
+  substituidoPorTokenHash  String?
+  criadoEm                 DateTime  @default(now())
+  atualizadoEm             DateTime  @updatedAt
+
+  @@index([usuarioId])
+  @@index([familiaSessaoId])
+  @@map("refresh_tokens")
+}
