@@ -1,6 +1,7 @@
 import type { FastifyRequest } from "fastify";
 import { describe, expect, it } from "vitest";
 import { signAccessToken } from "../src/shared/auth/jwt.js";
+import { AppError } from "../src/shared/errors/app-error.js";
 import { assertAdminUser, getAuthenticatedUser } from "../src/modules/auth/auth.guards.js";
 import type { AuthRepository, AuthUserRecord } from "../src/modules/auth/auth.service.js";
 
@@ -53,11 +54,18 @@ describe("auth guards", () => {
   });
 
   it("rejects stale non-Admin profile from trusted backend state with 403", () => {
-    expect(() =>
+    let thrownError: unknown;
+
+    try {
       assertAdminUser({
         ...adminUser,
         perfil: "Recepcionista"
-      })
-    ).toThrow(expect.objectContaining({ code: "FORBIDDEN", statusCode: 403 }));
+      });
+    } catch (error) {
+      thrownError = error;
+    }
+
+    expect(thrownError).toBeInstanceOf(AppError);
+    expect(thrownError).toMatchObject({ code: "FORBIDDEN", statusCode: 403 });
   });
 });
