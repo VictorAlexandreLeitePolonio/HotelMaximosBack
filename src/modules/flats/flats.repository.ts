@@ -281,4 +281,18 @@ export class PrismaFlatsRepository implements FlatsRepository {
       }
     });
   }
+
+  async hasFutureReservation(id: number, now: Date): Promise<boolean> {
+    const count = await this.prisma.reserva.count({
+      where: {
+        flatId: id,
+        status: "Confirmada",
+        dataInicio: {
+          gte: now
+        }
+      }
+    });
+
+    return count > 0;
+  }
 }

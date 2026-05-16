@@ -20,6 +20,12 @@ enum StatusOperacionalFlat {
   Manutencao
 }
 
+enum StatusReserva {
+  Confirmada
+  Cancelada
+  NoShow
+}
+
 model HospedeResponsavel {
   id             Int                    @id @default(autoincrement())
   nomeCompleto   String
@@ -34,6 +40,7 @@ model HospedeResponsavel {
   criadoEm       DateTime               @default(now())
   atualizadoEm   DateTime               @updatedAt
   acompanhantes  HospedeAcompanhante[]
+  reservas        Reserva[]
 
   @@index([ativo])
   @@index([nomeCompleto])
@@ -67,6 +74,7 @@ model SubcategoriaFlat {
   criadoEm        DateTime           @default(now())
   atualizadoEm    DateTime           @updatedAt
   flats           Flat[]
+  reservas        Reserva[]
 
   @@unique([categoriaId, nomeNormalizado])
   @@index([categoriaId])
@@ -87,6 +95,7 @@ model Flat {
   ativo              Boolean               @default(true)
   criadoEm           DateTime              @default(now())
   atualizadoEm       DateTime              @updatedAt
+  reservas           Reserva[]
 
   @@index([categoriaId])
   @@index([subcategoriaId])
@@ -104,9 +113,51 @@ model HospedeAcompanhante {
   menorDeIdade          Boolean             @default(false)
   criadoEm              DateTime            @default(now())
   atualizadoEm          DateTime            @updatedAt
+  reservas              ReservaHospede[]
 
   @@index([hospedeResponsavelId])
   @@map("hospedes_acompanhantes")
+}
+
+model Reserva {
+  id                    Int                    @id @default(autoincrement())
+  flatId                Int
+  flat                  Flat                   @relation(fields: [flatId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  subcategoriaId        Int
+  subcategoria          SubcategoriaFlat       @relation(fields: [subcategoriaId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  hospedeResponsavelId  Int
+  hospedeResponsavel    HospedeResponsavel     @relation(fields: [hospedeResponsavelId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  dataInicio            DateTime
+  dataFim               DateTime
+  status                StatusReserva          @default(Confirmada)
+  quantidadeHospedes    Int
+  cafeContratado        Boolean                @default(false)
+  valorBaseContratado   Decimal                @db.Decimal(10, 2)
+  valorCafePorPessoa    Decimal                @default(0) @db.Decimal(10, 2)
+  valorCafeContratado   Decimal                @default(0) @db.Decimal(10, 2)
+  valorTotalContratado  Decimal                @db.Decimal(10, 2)
+  observacoes           String?
+  criadoEm              DateTime               @default(now())
+  atualizadoEm          DateTime               @updatedAt
+  hospedes              ReservaHospede[]
+
+  @@index([flatId, dataInicio, dataFim])
+  @@index([hospedeResponsavelId])
+  @@index([status])
+  @@index([dataInicio])
+  @@map("reservas")
+}
+
+model ReservaHospede {
+  reservaId      Int
+  reserva        Reserva               @relation(fields: [reservaId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  acompanhanteId Int
+  acompanhante   HospedeAcompanhante   @relation(fields: [acompanhanteId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  criadoEm       DateTime              @default(now())
+
+  @@id([reservaId, acompanhanteId])
+  @@index([acompanhanteId])
+  @@map("reservas_hospedes")
 }
 
 model Usuario {

@@ -62,9 +62,10 @@ export type FlatsRepository = {
   create(data: Omit<FlatRecord, "id" | "categoria" | "subcategoria" | "criadoEm" | "atualizadoEm">): Promise<FlatRecord>;
   update(id: number, data: Partial<Omit<FlatRecord, "id" | "categoria" | "subcategoria" | "criadoEm">>): Promise<FlatRecord>;
   softDelete(id: number): Promise<void>;
+  hasFutureReservation(id: number, now: Date): Promise<boolean>;
 };
 
-const STRUCTURAL_BLOCKING_STATUSES: FlatStatus[] = ["Reservado", "Ocupado"];
+const OCCUPANCY_BLOCKING_STATUSES: FlatStatus[] = ["Ocupado"];
 
 export class FlatsService {
   constructor(private readonly repository: FlatsRepository) {}
@@ -111,7 +112,11 @@ export class FlatsService {
     const changingStructure =
       nextCategoriaId !== current.categoriaId || nextSubcategoriaId !== current.subcategoriaId;
 
-    if (changingStructure && STRUCTURAL_BLOCKING_STATUSES.includes(current.statusOperacional)) {
+    if (changingStructure && OCCUPANCY_BLOCKING_STATUSES.includes(current.statusOperacional)) {
+      throw flatStructureBlockedError();
+    }
+
+    if (changingStructure && (await this.repository.hasFutureReservation(id, new Date()))) {
       throw flatStructureBlockedError();
     }
 

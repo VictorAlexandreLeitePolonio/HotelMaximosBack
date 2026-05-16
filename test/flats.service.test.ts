@@ -11,6 +11,7 @@ class FakeFlatsRepository implements FlatsRepository {
   flats: FlatRecord[] = [];
   categorias: CategoriaResumoRecord[] = [];
   subcategorias: SubcategoriaResumoRecord[] = [];
+  futureReservations = new Set<number>();
 
   async list() {
     return {
@@ -88,6 +89,10 @@ class FakeFlatsRepository implements FlatsRepository {
     }
 
     flat.ativo = false;
+  }
+
+  async hasFutureReservation(id: number) {
+    return this.futureReservations.has(id);
   }
 }
 
@@ -182,7 +187,39 @@ describe("FlatsService", () => {
     });
   });
 
-  it("blocks category or subcategory changes when flat is reserved", async () => {
+  it("blocks category or subcategory changes when flat has future reservation", async () => {
+    const repository = new FakeFlatsRepository();
+    repository.categorias.push(createCategoria({ id: 1 }));
+    repository.categorias.push(createCategoria({ id: 2, nome: "Master" }));
+    repository.subcategorias.push(createSubcategoria({ id: 1, categoriaId: 1 }));
+    repository.subcategorias.push(createSubcategoria({ id: 2, categoriaId: 2, nome: "Premium" }));
+    repository.flats.push({
+      id: 1,
+      numero: "101",
+      numeroNormalizado: "101",
+      categoriaId: 1,
+      subcategoriaId: 1,
+      categoria: createCategoria({ id: 1 }),
+      subcategoria: createSubcategoria({ id: 1, categoriaId: 1 }),
+      statusOperacional: "Livre",
+      ativo: true,
+      criadoEm: new Date(),
+      atualizadoEm: new Date()
+    });
+    repository.futureReservations.add(1);
+
+    await expect(
+      new FlatsService(repository).update(1, {
+        categoriaId: 2,
+        subcategoriaId: 2
+      })
+    ).rejects.toMatchObject({
+      code: "FLAT_005",
+      statusCode: 400
+    });
+  });
+
+  it("does not use legacy reserved flat status as future reservation source", async () => {
     const repository = new FakeFlatsRepository();
     repository.categorias.push(createCategoria({ id: 1 }));
     repository.categorias.push(createCategoria({ id: 2, nome: "Master" }));
@@ -202,15 +239,13 @@ describe("FlatsService", () => {
       atualizadoEm: new Date()
     });
 
-    await expect(
-      new FlatsService(repository).update(1, {
-        categoriaId: 2,
-        subcategoriaId: 2
-      })
-    ).rejects.toMatchObject({
-      code: "FLAT_005",
-      statusCode: 400
+    const result = await new FlatsService(repository).update(1, {
+      categoriaId: 2,
+      subcategoriaId: 2
     });
+
+    expect(result.categoriaId).toBe(2);
+    expect(result.subcategoriaId).toBe(2);
   });
 
   it("updates operational status without changing the structural hierarchy", async () => {

@@ -11,12 +11,7 @@ import {
   categoriaResponseSchema,
   categoriasListQuerySchema,
   categoriasListResponseSchema,
-  subcategoriaBodySchema,
-  subcategoriaResponseSchema,
-  subcategoriasListQuerySchema,
-  subcategoriasListResponseSchema,
-  updateCategoriaBodySchema,
-  updateSubcategoriaBodySchema
+  updateCategoriaBodySchema
 } from "./categorias.schemas.js";
 import { CategoriasService } from "./categorias.service.js";
 
@@ -126,6 +121,7 @@ export const categoriasRoutes: FastifyPluginAsyncZod = async (app) => {
         params: categoriaParamsSchema,
         response: {
           204: noContentSchema,
+          400: errorResponseSchema,
           401: errorResponseSchema,
           403: errorResponseSchema,
           404: errorResponseSchema
@@ -136,121 +132,6 @@ export const categoriasRoutes: FastifyPluginAsyncZod = async (app) => {
       const requester = await getAuthenticatedUser(request, authRepository);
       assertAdminUser(requester);
       await categoriasService.deleteCategory(request.params.id);
-      return reply.status(204).send(null);
-    }
-  );
-
-  app.get(
-    "/subcategorias",
-    {
-      schema: {
-        tags: ["Categorias"],
-        summary: "Lista subcategorias com filtros e paginacao.",
-        querystring: subcategoriasListQuerySchema,
-        response: {
-          200: subcategoriasListResponseSchema,
-          401: errorResponseSchema,
-          403: errorResponseSchema
-        }
-      }
-    },
-    async (request) => {
-      const requester = await getAuthenticatedUser(request, authRepository);
-      assertAdminUser(requester);
-      return categoriasService.listSubcategories(request.query);
-    }
-  );
-
-  app.post(
-    "/subcategorias",
-    {
-      schema: {
-        tags: ["Categorias"],
-        summary: "Cria subcategoria.",
-        body: subcategoriaBodySchema,
-        response: {
-          201: subcategoriaResponseSchema,
-          400: errorResponseSchema,
-          401: errorResponseSchema,
-          403: errorResponseSchema,
-          404: errorResponseSchema,
-          409: errorResponseSchema
-        }
-      }
-    },
-    async (request, reply) => {
-      const requester = await getAuthenticatedUser(request, authRepository);
-      assertAdminUser(requester);
-      return reply.status(201).send(await categoriasService.createSubcategory(request.body));
-    }
-  );
-
-  app.get(
-    "/subcategorias/:id",
-    {
-      schema: {
-        tags: ["Categorias"],
-        summary: "Busca subcategoria por id.",
-        params: categoriaParamsSchema,
-        response: {
-          200: subcategoriaResponseSchema,
-          401: errorResponseSchema,
-          403: errorResponseSchema,
-          404: errorResponseSchema
-        }
-      }
-    },
-    async (request) => {
-      const requester = await getAuthenticatedUser(request, authRepository);
-      assertAdminUser(requester);
-      return categoriasService.getSubcategoryById(request.params.id);
-    }
-  );
-
-  app.put(
-    "/subcategorias/:id",
-    {
-      schema: {
-        tags: ["Categorias"],
-        summary: "Atualiza subcategoria.",
-        params: categoriaParamsSchema,
-        body: updateSubcategoriaBodySchema,
-        response: {
-          200: subcategoriaResponseSchema,
-          400: errorResponseSchema,
-          401: errorResponseSchema,
-          403: errorResponseSchema,
-          404: errorResponseSchema,
-          409: errorResponseSchema
-        }
-      }
-    },
-    async (request) => {
-      const requester = await getAuthenticatedUser(request, authRepository);
-      assertAdminUser(requester);
-      return categoriasService.updateSubcategory(request.params.id, request.body);
-    }
-  );
-
-  app.delete(
-    "/subcategorias/:id",
-    {
-      schema: {
-        tags: ["Categorias"],
-        summary: "Inativa subcategoria.",
-        params: categoriaParamsSchema,
-        response: {
-          204: noContentSchema,
-          401: errorResponseSchema,
-          403: errorResponseSchema,
-          404: errorResponseSchema
-        }
-      }
-    },
-    async (request, reply) => {
-      const requester = await getAuthenticatedUser(request, authRepository);
-      assertAdminUser(requester);
-      await categoriasService.deleteSubcategory(request.params.id);
       return reply.status(204).send(null);
     }
   );
