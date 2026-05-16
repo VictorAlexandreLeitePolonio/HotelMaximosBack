@@ -12,6 +12,40 @@ enum PerfilUsuario {
   Recepcionista
 }
 
+model HospedeResponsavel {
+  id             Int                    @id @default(autoincrement())
+  nomeCompleto   String
+  cpf            String
+  cpfNormalizado String                 @unique
+  email          String
+  endereco       String
+  telefone       String
+  documento      String
+  empresa        String?
+  ativo          Boolean                @default(true)
+  criadoEm       DateTime               @default(now())
+  atualizadoEm   DateTime               @updatedAt
+  acompanhantes  HospedeAcompanhante[]
+
+  @@index([ativo])
+  @@index([nomeCompleto])
+  @@map("hospedes_responsaveis")
+}
+
+model HospedeAcompanhante {
+  id                    Int                 @id @default(autoincrement())
+  hospedeResponsavelId  Int
+  hospedeResponsavel    HospedeResponsavel  @relation(fields: [hospedeResponsavelId], references: [id], onDelete: Cascade)
+  nomeCompleto          String
+  documento             String?
+  menorDeIdade          Boolean             @default(false)
+  criadoEm              DateTime            @default(now())
+  atualizadoEm          DateTime            @updatedAt
+
+  @@index([hospedeResponsavelId])
+  @@map("hospedes_acompanhantes")
+}
+
 model Usuario {
   id                Int             @id @default(autoincrement())
   login             String
