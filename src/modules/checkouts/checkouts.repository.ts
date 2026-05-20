@@ -68,6 +68,32 @@ export class PrismaCheckoutsRepository implements CheckoutsRepository {
         }
       });
 
+      await tx.limpeza.upsert({
+        where: {
+          chaveGeracao: `checkout:${data.estadiaId}`
+        },
+        create: {
+          chaveGeracao: `checkout:${data.estadiaId}`,
+          flatId: estadia.flatId,
+          estadiaId: data.estadiaId,
+          tipo: "Checkout",
+          status: "Pendente",
+          dataProgramada: data.dataCheckout,
+          atrasaEm: new Date(data.dataCheckout.getTime() + 24 * 60 * 60 * 1000)
+        },
+        update: {
+          flatId: estadia.flatId,
+          estadiaId: data.estadiaId,
+          tipo: "Checkout",
+          status: "Pendente",
+          dataProgramada: data.dataCheckout,
+          atrasaEm: new Date(data.dataCheckout.getTime() + 24 * 60 * 60 * 1000),
+          concluidaEm: null,
+          usuarioConclusaoId: null,
+          observacoesConclusao: null
+        }
+      });
+
       await tx.historicoFlat.create({
         data: {
           flatId: estadia.flatId,

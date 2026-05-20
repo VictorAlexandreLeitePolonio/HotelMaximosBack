@@ -1,56 +1,64 @@
-# Sprint 8: Checkout e recibos
+# Sprint 9: Limpezas
 
 ## Objetivo
 
-Entregar o checkout operacional do backend com validacao financeira, encerramento da estadia, recibo final e transicao do flat para limpeza.
+Entregar o backend operacional do modulo de limpezas semanais e de checkout, com geracao consistente, atraso por regra de negocio e conclusao manual pela recepcao.
 
 ## Escopo tecnico
 
-- Encerrar estadias ativas via endpoint dedicado de checkout.
-- Bloquear checkout de recepcionista quando houver debitos pendentes.
-- Permitir override administrativo apenas para `Admin`, com motivo obrigatorio e trilha auditavel.
-- Atualizar o flat para `AguardandoLimpeza` ao final do checkout.
-- Manter o bloqueio natural de novo check-in enquanto o flat permanecer em `AguardandoLimpeza`.
-- Gerar resumo de recibo final no retorno do checkout e disponibilizar exportacao server-side do recibo.
+- Gerar limpezas semanais para flats com estadia ativa nas janelas operacionais de sexta e sabado.
+- Gerar limpeza de checkout para a estadia encerrada no momento do checkout.
+- Marcar limpezas semanais como atrasadas a partir de domingo 00:00 no timezone `America/Sao_Paulo`.
+- Marcar limpezas de checkout como atrasadas apos 24h da geracao.
+- Expor listagem operacional de limpezas.
+- Permitir conclusao manual de limpeza por `Admin` ou `Recepcionista`.
+- Devolver o flat para `Livre` apos conclusao de limpeza de checkout, preservando a ocupacao nas limpezas semanais.
 
 ## Regras de negocio
 
-1. Checkout so pode ocorrer para estadia com status `Ativa`.
-2. Debito pendente considera qualquer cobranca com status `Pendente`, incluindo cobrancas originadas de extras.
-3. Recepcionista nao pode concluir checkout com debito pendente.
-4. Admin pode concluir checkout com debito pendente apenas informando `motivoOverride`.
-5. Ao concluir checkout:
-   - a estadia muda para `Encerrada`;
-   - `dataFimEfetiva` recebe a data/hora atual;
-   - o flat muda para `AguardandoLimpeza`;
-   - um historico auditavel do checkout e registrado.
-6. O recibo final e gerado a partir da fotografia da estadia encerrada, das cobrancas e dos pagamentos vinculados.
+1. Limpeza semanal so pode ser gerada para estadia com status `Ativa`.
+2. Sexta e sabado geram registros independentes de limpeza semanal.
+3. O atraso semanal usa a virada para domingo em `America/Sao_Paulo`, nao apenas `UTC`.
+4. Limpeza de checkout nasce no mesmo fluxo transacional que encerra a estadia e move o flat para `AguardandoLimpeza`.
+5. Limpezas abertas em flat com status `Manutencao` ficam `Suspensa` enquanto a manutencao estiver vigente.
+6. Limpeza `Suspensa` nao pode ser concluida manualmente nesta sprint.
+7. Concluir limpeza de checkout devolve o flat para `Livre` quando ele ainda estiver em `AguardandoLimpeza`.
+8. Concluir limpeza semanal nao altera um flat ocupado.
 
 ## Contratos planejados
 
-### POST `/api/estadias/:id/checkout`
+### GET `/api/limpezas`
 
-Executa o checkout da estadia.
+Lista limpezas operacionais.
+
+Query params:
+
+```json
+{
+  "page": 1,
+  "pageSize": 10,
+  "tipo": "Semanal",
+  "status": "Pendente",
+  "flatId": 101,
+  "sortOrder": "desc"
+}
+```
+
+### POST `/api/limpezas/:id/concluir`
+
+Conclui manualmente uma limpeza.
 
 Body:
 
 ```json
 {
-  "motivoOverride": "Checkout autorizado pelo admin com debito residual acordado."
+  "observacoes": "Limpeza concluida e flat liberado."
 }
 ```
 
-Observacoes:
-
-- `motivoOverride` e opcional quando nao existe debito pendente.
-- `motivoOverride` e obrigatorio quando o usuario autenticado for `Admin` e houver debito pendente.
-
-### GET `/api/estadias/:id/checkout/recibo`
-
-Retorna o PDF do recibo final da estadia encerrada.
-
 ## Decisoes tecnicas
 
-- Nao sera criada uma tabela dedicada de recibo nesta sprint.
-- A auditoria do checkout ficara em `HistoricoFlat`, com tipo `CheckOut` e metadados do override financeiro quando aplicavel.
-- O status `AguardandoLimpeza` continuara sendo o bloqueio operacional para novos check-ins ate a Sprint 9 formalizar o modulo de limpezas.
+- O backend nao depende de scheduler nesta sprint: a sincronizacao operacional das limpezas acontece ao consultar ou concluir o modulo.
+- Limpeza de checkout e criada diretamente no fluxo da Sprint 8 para manter o contrato entre checkout e bloqueio do flat.
+- A identificacao idempotente de cada limpeza usa `chaveGeracao`, evitando duplicidade entre sincronizacoes.
+- O modelo persiste `dataProgramada`, `atrasaEm`, `concluidaEm` e `status` para permitir rastreabilidade operacional simples sem criar um submodulo de agenda.
