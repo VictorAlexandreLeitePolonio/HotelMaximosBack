@@ -317,19 +317,40 @@ model EstadiaExtra {
 }
 
 model Caixa {
-  id           Int          @id @default(autoincrement())
-  usuarioId    Int
-  usuario      Usuario      @relation(fields: [usuarioId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  status       StatusCaixa  @default(Aberto)
-  abertoEm     DateTime     @default(now())
-  fechadoEm    DateTime?
-  criadoEm     DateTime     @default(now())
-  atualizadoEm DateTime     @updatedAt
-  pagamentos   Pagamento[]
+  id                    Int           @id @default(autoincrement())
+  usuarioId             Int
+  usuario               Usuario       @relation(fields: [usuarioId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  turno                 String?
+  status                StatusCaixa   @default(Aberto)
+  abertoEm              DateTime      @default(now())
+  fechadoEm             DateTime?
+  observacoesFechamento String?
+  valoresConferidos     Json?
+  resumoCalculado       Json?
+  criadoEm              DateTime      @default(now())
+  atualizadoEm          DateTime      @updatedAt
+  pagamentos            Pagamento[]
+  ajustes               AjusteCaixa[]
 
   @@index([usuarioId])
   @@index([status])
   @@map("caixas")
+}
+
+model AjusteCaixa {
+  id          Int      @id @default(autoincrement())
+  caixaId     Int
+  caixa       Caixa    @relation(fields: [caixaId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  usuarioId   Int
+  usuario     Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  motivo      String
+  observacoes String?
+  valores     Json
+  criadoEm    DateTime @default(now())
+
+  @@index([caixaId])
+  @@index([usuarioId])
+  @@map("ajustes_caixa")
 }
 
 model Pagamento {
@@ -387,6 +408,7 @@ model Usuario {
   atualizadoEm      DateTime        @updatedAt
   refreshTokens     RefreshToken[]
   caixas            Caixa[]
+  ajustesCaixa      AjusteCaixa[]
   pagamentos        Pagamento[]
   historicosFlat    HistoricoFlat[]
 
