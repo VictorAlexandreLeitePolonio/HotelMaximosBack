@@ -12,6 +12,7 @@ import {
 import { env } from "./config/env.js";
 import { registerErrorHandler } from "./shared/errors/error-handler.js";
 import { authRoutes } from "./modules/auth/auth.routes.js";
+import { caixasRoutes } from "./modules/caixas/caixas.routes.js";
 import { categoriasRoutes } from "./modules/categorias/categorias.routes.js";
 import { estadiasRoutes } from "./modules/estadias/estadias.routes.js";
 import { financeiroRoutes } from "./modules/financeiro/financeiro.routes.js";
@@ -90,6 +91,7 @@ export async function buildApp(): Promise<FastifyInstance> {
       },
       tags: [
         { name: "Auth", description: "Endpoints de autenticacao." },
+        { name: "Caixas", description: "Endpoints operacionais de abertura, fechamento e ajustes de caixa." },
         { name: "Categorias", description: "Endpoints de gestao de categorias." },
         { name: "Estadias", description: "Endpoints operacionais de check-in e estadias ativas." },
         { name: "Financeiro", description: "Endpoints de cobranças, pagamentos e extras." },
@@ -113,6 +115,7 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   await app.register(healthRoutes, { prefix: "/api" });
   await app.register(authRoutes, { prefix: "/api/auth" });
+  await app.register(caixasRoutes, { prefix: "/api" });
   await app.register(categoriasRoutes, { prefix: "/api/categorias" });
   await app.register(estadiasRoutes, { prefix: "/api" });
   await app.register(financeiroRoutes, { prefix: "/api" });
