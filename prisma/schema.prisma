@@ -68,6 +68,18 @@ enum TipoHistoricoFlat {
   Renovacao
 }
 
+enum TipoLimpeza {
+  Semanal
+  Checkout
+}
+
+enum StatusLimpeza {
+  Pendente
+  Concluida
+  Atrasada
+  Suspensa
+}
+
 model HospedeResponsavel {
   id             Int                    @id @default(autoincrement())
   nomeCompleto   String
@@ -142,6 +154,7 @@ model Flat {
   reservas           Reserva[]
   estadias           Estadia[]
   historicos         HistoricoFlat[]
+  limpezas           Limpeza[]
 
   @@index([categoriaId])
   @@index([subcategoriaId])
@@ -235,6 +248,7 @@ model Estadia {
   cobrancas             Cobranca[]
   extras                EstadiaExtra[]
   historicos            HistoricoFlat[]
+  limpezas              Limpeza[]
 
   @@index([flatId])
   @@index([subcategoriaId])
@@ -395,6 +409,34 @@ model HistoricoFlat {
   @@map("historicos_flat")
 }
 
+model Limpeza {
+  id                   Int            @id @default(autoincrement())
+  chaveGeracao         String         @unique
+  flatId               Int
+  flat                 Flat           @relation(fields: [flatId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  estadiaId            Int?
+  estadia              Estadia?       @relation(fields: [estadiaId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  tipo                 TipoLimpeza
+  status               StatusLimpeza  @default(Pendente)
+  dataProgramada       DateTime
+  atrasaEm             DateTime
+  concluidaEm          DateTime?
+  usuarioConclusaoId   Int?
+  usuarioConclusao     Usuario?       @relation("LimpezaConcluidaPor", fields: [usuarioConclusaoId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  observacoesConclusao String?
+  criadoEm             DateTime       @default(now())
+  atualizadoEm         DateTime       @updatedAt
+
+  @@index([flatId])
+  @@index([estadiaId])
+  @@index([status])
+  @@index([tipo])
+  @@index([dataProgramada])
+  @@index([atrasaEm])
+  @@index([usuarioConclusaoId])
+  @@map("limpezas")
+}
+
 model Usuario {
   id                Int             @id @default(autoincrement())
   login             String
@@ -412,6 +454,7 @@ model Usuario {
   ajustesCaixa      AjusteCaixa[]
   pagamentos        Pagamento[]
   historicosFlat    HistoricoFlat[]
+  limpezasConcluidas Limpeza[]       @relation("LimpezaConcluidaPor")
 
   @@map("usuarios")
 }

@@ -20,6 +20,7 @@ import { financeiroRoutes } from "./modules/financeiro/financeiro.routes.js";
 import { flatsRoutes } from "./modules/flats/flats.routes.js";
 import { healthRoutes } from "./modules/health/health.routes.js";
 import { hospedesRoutes } from "./modules/hospedes/hospedes.routes.js";
+import { limpezasRoutes } from "./modules/limpezas/limpezas.routes.js";
 import { reservasRoutes } from "./modules/reservas/reservas.routes.js";
 import { subcategoriasRoutes } from "./modules/subcategorias/subcategorias.routes.js";
 import { usersRoutes } from "./modules/users/users.routes.js";
@@ -100,6 +101,7 @@ export async function buildApp(): Promise<FastifyInstance> {
         { name: "Flats", description: "Endpoints de gestao de flats." },
         { name: "Health", description: "Endpoints de verificação da API." },
         { name: "Hospedes", description: "Endpoints de gestao de hospedes." },
+        { name: "Limpezas", description: "Endpoints operacionais de limpezas semanais e de checkout." },
         { name: "Reservas", description: "Endpoints de disponibilidade e reservas." },
         { name: "Subcategorias", description: "Endpoints de gestao de subcategorias, valores e capacidade." },
         { name: "Users", description: "Endpoints de gestao de usuarios." }
@@ -124,6 +126,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(financeiroRoutes, { prefix: "/api" });
   await app.register(flatsRoutes, { prefix: "/api/flats" });
   await app.register(hospedesRoutes, { prefix: "/api/hospedes" });
+  await app.register(limpezasRoutes, { prefix: "/api" });
   await app.register(reservasRoutes, { prefix: "/api/reservas" });
   await app.register(subcategoriasRoutes, { prefix: "/api/subcategorias" });
   await app.register(usersRoutes, { prefix: "/api/users" });
