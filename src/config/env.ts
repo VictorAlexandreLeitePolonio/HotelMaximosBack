@@ -6,7 +6,9 @@ const envSchema = z.object({
   PORT: z.coerce.number().int().positive().default(3333),
   DATABASE_URL: z.string().url(),
   JWT_SECRET: z.string().min(32, "JWT_SECRET deve ter pelo menos 32 caracteres."),
-  JWT_EXPIRES_IN: z.string().default("15m")
+  JWT_EXPIRES_IN: z.string().default("15m"),
+  UPLOADS_DIR: z.string().default("storage"),
+  COMPROVANTE_MAX_FILE_SIZE_BYTES: z.coerce.number().int().positive().default(5 * 1024 * 1024)
 });
 
 export type Env = z.infer<typeof envSchema>;

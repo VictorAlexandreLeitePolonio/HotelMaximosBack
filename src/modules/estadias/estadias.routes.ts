@@ -1,5 +1,6 @@
 import type { FastifyPluginAsyncZod } from "fastify-type-provider-zod";
 import { prisma } from "../../shared/prisma/client.js";
+import { resolveComprovanteValue } from "../../shared/uploads/comprovantes.storage.js";
 import { assertAllowedProfiles, getAuthenticatedUser } from "../auth/auth.guards.js";
 import { PrismaAuthRepository } from "../auth/auth.repository.js";
 import { PrismaEstadiasRepository } from "./estadias.repository.js";
@@ -29,6 +30,7 @@ export const estadiasRoutes: FastifyPluginAsyncZod = async (app) => {
       schema: {
         tags: ["Estadias"],
         summary: "Realiza check-in a partir de reserva existente.",
+        consumes: ["application/json", "multipart/form-data"],
         params: estadiaParamsSchema,
         body: checkInFromReservationBodySchema,
         response: {
@@ -41,7 +43,16 @@ export const estadiasRoutes: FastifyPluginAsyncZod = async (app) => {
       const user = await getAuthenticatedUser(request, authRepository);
       assertAllowedProfiles(user, ["Admin", "Recepcionista"]);
 
-      return estadiasService.checkInFromReservation(request.params.id, user.id, request.body);
+      const { comprovanteArquivo, ...body } = request.body;
+      const comprovante = await resolveComprovanteValue({
+        comprovante: body.comprovante,
+        comprovanteArquivo
+      });
+
+      return estadiasService.checkInFromReservation(request.params.id, user.id, {
+        ...body,
+        comprovante
+      });
     }
   );
 
@@ -51,6 +62,7 @@ export const estadiasRoutes: FastifyPluginAsyncZod = async (app) => {
       schema: {
         tags: ["Estadias"],
         summary: "Realiza check-in direto sem reserva previa.",
+        consumes: ["application/json", "multipart/form-data"],
         body: directCheckInBodySchema,
         response: {
           200: checkInResponseSchema,
@@ -62,7 +74,16 @@ export const estadiasRoutes: FastifyPluginAsyncZod = async (app) => {
       const user = await getAuthenticatedUser(request, authRepository);
       assertAllowedProfiles(user, ["Admin", "Recepcionista"]);
 
-      return estadiasService.directCheckIn(user.id, request.body);
+      const { comprovanteArquivo, ...body } = request.body;
+      const comprovante = await resolveComprovanteValue({
+        comprovante: body.comprovante,
+        comprovanteArquivo
+      });
+
+      return estadiasService.directCheckIn(user.id, {
+        ...body,
+        comprovante
+      });
     }
   );
 

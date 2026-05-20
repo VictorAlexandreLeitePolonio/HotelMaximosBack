@@ -1,3 +1,4 @@
+import multipart from "@fastify/multipart";
 import swagger from "@fastify/swagger";
 import swaggerUi from "@fastify/swagger-ui";
 import Fastify, { type FastifyInstance } from "fastify";
@@ -11,8 +12,10 @@ import {
 import { env } from "./config/env.js";
 import { registerErrorHandler } from "./shared/errors/error-handler.js";
 import { authRoutes } from "./modules/auth/auth.routes.js";
+import { caixasRoutes } from "./modules/caixas/caixas.routes.js";
 import { categoriasRoutes } from "./modules/categorias/categorias.routes.js";
 import { estadiasRoutes } from "./modules/estadias/estadias.routes.js";
+import { financeiroRoutes } from "./modules/financeiro/financeiro.routes.js";
 import { flatsRoutes } from "./modules/flats/flats.routes.js";
 import { healthRoutes } from "./modules/health/health.routes.js";
 import { hospedesRoutes } from "./modules/hospedes/hospedes.routes.js";
@@ -69,6 +72,16 @@ export async function buildApp(): Promise<FastifyInstance> {
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
 
+  await app.register(multipart, {
+    attachFieldsToBody: true,
+    limits: {
+      fileSize: env.COMPROVANTE_MAX_FILE_SIZE_BYTES,
+      files: 1,
+      fields: 20
+    },
+    throwFileSizeLimit: true
+  });
+
   await app.register(swagger, {
     openapi: {
       info: {
@@ -78,8 +91,10 @@ export async function buildApp(): Promise<FastifyInstance> {
       },
       tags: [
         { name: "Auth", description: "Endpoints de autenticacao." },
+        { name: "Caixas", description: "Endpoints operacionais de abertura, fechamento e ajustes de caixa." },
         { name: "Categorias", description: "Endpoints de gestao de categorias." },
         { name: "Estadias", description: "Endpoints operacionais de check-in e estadias ativas." },
+        { name: "Financeiro", description: "Endpoints de cobranças, pagamentos e extras." },
         { name: "Flats", description: "Endpoints de gestao de flats." },
         { name: "Health", description: "Endpoints de verificação da API." },
         { name: "Hospedes", description: "Endpoints de gestao de hospedes." },
@@ -100,8 +115,10 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   await app.register(healthRoutes, { prefix: "/api" });
   await app.register(authRoutes, { prefix: "/api/auth" });
+  await app.register(caixasRoutes, { prefix: "/api" });
   await app.register(categoriasRoutes, { prefix: "/api/categorias" });
   await app.register(estadiasRoutes, { prefix: "/api" });
+  await app.register(financeiroRoutes, { prefix: "/api" });
   await app.register(flatsRoutes, { prefix: "/api/flats" });
   await app.register(hospedesRoutes, { prefix: "/api/hospedes" });
   await app.register(reservasRoutes, { prefix: "/api/reservas" });
