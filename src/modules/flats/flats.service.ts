@@ -1,7 +1,11 @@
 import { AppError } from "../../shared/errors/app-error.js";
+import type { AuthUserRecord } from "../auth/auth.service.js";
+import type { ReservaStatus } from "../reservas/reservas.service.js";
 import { normalizeFlatNumber, normalizeRequiredText } from "./flats.helpers.js";
 
 export type FlatStatus = "Livre" | "Reservado" | "Ocupado" | "AguardandoLimpeza" | "Manutencao";
+export type CleaningStatus = "Pendente" | "Concluida" | "Atrasada" | "Suspensa";
+export type CleaningType = "Semanal" | "Checkout";
 
 export type CategoriaResumoRecord = {
   id: number;
@@ -32,6 +36,24 @@ export type FlatRecord = {
   atualizadoEm: Date;
 };
 
+export type FlatMaintenanceReservationRecord = {
+  id: number;
+  status: ReservaStatus;
+};
+
+export type FlatMaintenanceCleaningRecord = {
+  id: number;
+  tipo: CleaningType;
+  status: CleaningStatus;
+  atrasaEm: Date;
+  concluidaEm: Date | null;
+};
+
+export type FlatMaintenanceCleaningStatusChange = {
+  id: number;
+  status: CleaningStatus;
+};
+
 export type FlatsListInput = {
   page: number;
   pageSize: number;
@@ -53,6 +75,35 @@ export type CreateFlatInput = {
 
 export type UpdateFlatInput = Partial<CreateFlatInput>;
 
+export type StartFlatMaintenanceInput = {
+  motivo: string;
+  observacoes?: string;
+};
+
+export type ReleaseFlatMaintenanceInput = {
+  observacoes?: string;
+};
+
+type StartFlatMaintenancePayload = {
+  flatId: number;
+  usuario: AuthUserRecord;
+  statusAnterior: FlatStatus;
+  motivo: string;
+  observacoes: string | null;
+  reservasAfetadas: FlatMaintenanceReservationRecord[];
+  limpezasAfetadas: FlatMaintenanceCleaningStatusChange[];
+  iniciadoEm: Date;
+};
+
+type ReleaseFlatMaintenancePayload = {
+  flatId: number;
+  usuario: AuthUserRecord;
+  observacoes: string | null;
+  statusSeguinte: FlatStatus;
+  limpezasAfetadas: FlatMaintenanceCleaningStatusChange[];
+  liberadoEm: Date;
+};
+
 export type FlatsRepository = {
   list(input: FlatsListInput): Promise<{ data: FlatRecord[]; total: number }>;
   findById(id: number): Promise<FlatRecord | null>;
@@ -63,6 +114,10 @@ export type FlatsRepository = {
   update(id: number, data: Partial<Omit<FlatRecord, "id" | "categoria" | "subcategoria" | "criadoEm">>): Promise<FlatRecord>;
   softDelete(id: number): Promise<void>;
   hasFutureReservation(id: number, now: Date): Promise<boolean>;
+  listPendingReservationsForMaintenance(flatId: number, now: Date): Promise<FlatMaintenanceReservationRecord[]>;
+  listOpenCleaningsForFlat(flatId: number): Promise<FlatMaintenanceCleaningRecord[]>;
+  startMaintenance(data: StartFlatMaintenancePayload): Promise<FlatRecord>;
+  releaseMaintenance(data: ReleaseFlatMaintenancePayload): Promise<FlatRecord>;
 };
 
 const OCCUPANCY_BLOCKING_STATUSES: FlatStatus[] = ["Ocupado"];
@@ -139,7 +194,99 @@ export class FlatsService {
       throw flatNotFoundError();
     }
 
+    if (statusOperacional === "Manutencao" || current.statusOperacional === "Manutencao") {
+      throw dedicatedMaintenanceRouteRequiredError();
+    }
+
     return toFlatResponse(await this.repository.update(id, { statusOperacional }));
+  }
+
+  async startMaintenance(
+    id: number,
+    user: AuthUserRecord,
+    input: StartFlatMaintenanceInput,
+    now: Date = new Date()
+  ) {
+    const current = await this.repository.findById(id);
+
+    if (!current) {
+      throw flatNotFoundError();
+    }
+
+    if (current.statusOperacional === "Manutencao") {
+      throw flatAlreadyInMaintenanceError();
+    }
+
+    if (current.statusOperacional === "Ocupado") {
+      throw occupiedFlatMaintenanceError();
+    }
+
+    const [reservasAfetadas, limpezasAbertas] = await Promise.all([
+      this.repository.listPendingReservationsForMaintenance(id, now),
+      this.repository.listOpenCleaningsForFlat(id)
+    ]);
+
+    const motivo = normalizeRequiredText(input.motivo);
+    const observacoes = normalizeOptionalText(input.observacoes);
+    const limpezasAfetadas = limpezasAbertas.map((limpeza) => ({
+      id: limpeza.id,
+      status: "Suspensa" as const
+    }));
+
+    const flat = await this.repository.startMaintenance({
+      flatId: id,
+      usuario: user,
+      statusAnterior: current.statusOperacional,
+      motivo,
+      observacoes,
+      reservasAfetadas,
+      limpezasAfetadas,
+      iniciadoEm: now
+    });
+
+    return toFlatMaintenanceResponse(
+      flat,
+      reservasAfetadas.map((reserva) => ({
+        id: reserva.id,
+        status: "RequerRealocacao" as const
+      })),
+      limpezasAfetadas
+    );
+  }
+
+  async releaseMaintenance(
+    id: number,
+    user: AuthUserRecord,
+    input: ReleaseFlatMaintenanceInput,
+    now: Date = new Date()
+  ) {
+    const current = await this.repository.findById(id);
+
+    if (!current) {
+      throw flatNotFoundError();
+    }
+
+    if (current.statusOperacional !== "Manutencao") {
+      throw flatNotInMaintenanceError();
+    }
+
+    const limpezasAbertas = await this.repository.listOpenCleaningsForFlat(id);
+    const limpezasAfetadas = limpezasAbertas.map((limpeza) => ({
+      id: limpeza.id,
+      status: resolveCleaningStatusAfterMaintenance(limpeza, now)
+    }));
+    const statusSeguinte = resolveFlatStatusAfterMaintenance(limpezasAbertas);
+
+    const flat = await this.repository.releaseMaintenance({
+      flatId: id,
+      usuario: user,
+      observacoes: normalizeOptionalText(input.observacoes),
+      statusSeguinte,
+      limpezasAfetadas,
+      liberadoEm: now
+    });
+
+    return toFlatMaintenanceResponse(flat, [], limpezasAfetadas);
   }
 
   async delete(id: number): Promise<void> {
@@ -220,6 +367,42 @@ export function toFlatResponse(flat: FlatRecord) {
   };
 }
 
+function toFlatMaintenanceResponse(
+  flat: FlatRecord,
+  reservasAfetadas: FlatMaintenanceReservationRecord[],
+  limpezasAfetadas: FlatMaintenanceCleaningStatusChange[]
+) {
+  return {
+    flat: toFlatResponse(flat),
+    reservasAfetadas,
+    limpezasAfetadas
+  };
+}
+
+function resolveCleaningStatusAfterMaintenance(
+  limpeza: Pick<FlatMaintenanceCleaningRecord, "atrasaEm" | "concluidaEm">,
+  now: Date
+): CleaningStatus {
+  if (limpeza.concluidaEm) {
+    return "Concluida";
+  }
+
+  if (now.getTime() >= limpeza.atrasaEm.getTime()) {
+    return "Atrasada";
+  }
+
+  return "Pendente";
+}
+
+function resolveFlatStatusAfterMaintenance(limpezasAbertas: FlatMaintenanceCleaningRecord[]): FlatStatus {
+  return limpezasAbertas.some((limpeza) => limpeza.tipo === "Checkout") ? "AguardandoLimpeza" : "Livre";
+}
+
+function normalizeOptionalText(value?: string): string | null {
+  const text = value?.trim();
+  return text ? text : null;
+}
+
 function duplicateFlatNumberError(): AppError {
   return new AppError({
     code: "FLAT_001",
@@ -265,5 +448,37 @@ function subcategoryNotFoundError(): AppError {
     code: "FLAT_006",
     message: "Subcategoria informada nao encontrada ou inativa.",
     statusCode: 404
+  });
+}
+
+function dedicatedMaintenanceRouteRequiredError(): AppError {
+  return new AppError({
+    code: "FLAT_007",
+    message: "Use o fluxo dedicado de manutencao para entrar ou sair desse status.",
+    statusCode: 400
+  });
+}
+
+function flatAlreadyInMaintenanceError(): AppError {
+  return new AppError({
+    code: "FLAT_008",
+    message: "O flat ja esta em manutencao.",
+    statusCode: 409
+  });
+}
+
+function occupiedFlatMaintenanceError(): AppError {
+  return new AppError({
+    code: "FLAT_009",
+    message: "Nao e possivel iniciar manutencao em um flat com estadia ativa.",
+    statusCode: 409
+  });
+}
+
+function flatNotInMaintenanceError(): AppError {
+  return new AppError({
+    code: "FLAT_010",
+    message: "O flat informado nao esta em manutencao.",
+    statusCode: 400
   });
 }

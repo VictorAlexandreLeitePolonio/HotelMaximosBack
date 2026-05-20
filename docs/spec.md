@@ -1,64 +1,104 @@
-# Sprint 9: Limpezas
+# Sprint 10: Manutencao e bloqueios
 
 ## Objetivo
 
-Entregar o backend operacional do modulo de limpezas semanais e de checkout, com geracao consistente, atraso por regra de negocio e conclusao manual pela recepcao.
+Entregar o backend operacional do bloqueio de flats em manutencao, com reflexo imediato em reservas pendentes, limpezas abertas e historico automatico do flat.
 
 ## Escopo tecnico
 
-- Gerar limpezas semanais para flats com estadia ativa nas janelas operacionais de sexta e sabado.
-- Gerar limpeza de checkout para a estadia encerrada no momento do checkout.
-- Marcar limpezas semanais como atrasadas a partir de domingo 00:00 no timezone `America/Sao_Paulo`.
-- Marcar limpezas de checkout como atrasadas apos 24h da geracao.
-- Expor listagem operacional de limpezas.
-- Permitir conclusao manual de limpeza por `Admin` ou `Recepcionista`.
-- Devolver o flat para `Livre` apos conclusao de limpeza de checkout, preservando a ocupacao nas limpezas semanais.
+- Bloquear manualmente um flat em manutencao por endpoint dedicado.
+- Liberar manualmente a manutencao com restauracao do fluxo operacional coerente.
+- Impedir que o endpoint generico de status burle as regras da sprint ao entrar ou sair de `Manutencao`.
+- Bloquear novas reservas e check-ins em flat em manutencao pelo contrato ja existente dos modulos operacionais.
+- Marcar reservas pendentes afetadas como `RequerRealocacao`.
+- Suspender limpezas abertas do flat enquanto a manutencao estiver vigente.
+- Reativar limpezas suspensas para `Pendente` ou `Atrasada` quando a manutencao for liberada.
+- Registrar historico automatico de inicio e liberacao da manutencao.
 
 ## Regras de negocio
 
-1. Limpeza semanal so pode ser gerada para estadia com status `Ativa`.
-2. Sexta e sabado geram registros independentes de limpeza semanal.
-3. O atraso semanal usa a virada para domingo em `America/Sao_Paulo`, nao apenas `UTC`.
-4. Limpeza de checkout nasce no mesmo fluxo transacional que encerra a estadia e move o flat para `AguardandoLimpeza`.
-5. Limpezas abertas em flat com status `Manutencao` ficam `Suspensa` enquanto a manutencao estiver vigente.
-6. Limpeza `Suspensa` nao pode ser concluida manualmente nesta sprint.
-7. Concluir limpeza de checkout devolve o flat para `Livre` quando ele ainda estiver em `AguardandoLimpeza`.
-8. Concluir limpeza semanal nao altera um flat ocupado.
+1. A abertura de manutencao e manual e muda imediatamente o `statusOperacional` do flat para `Manutencao`.
+2. Nao e permitido iniciar manutencao em flat com estadia ativa.
+3. Reservas afetadas sao as reservas do flat ainda sem check-in, com status `Confirmada` e `dataFim` futura no momento da abertura da manutencao.
+4. Toda reserva afetada passa para `RequerRealocacao` e deixa de ser elegivel para check-in direto a partir daquele contrato.
+5. Limpezas abertas do flat ficam `Suspensa` enquanto o flat permanecer em manutencao.
+6. Ao liberar manutencao, a limpeza aberta volta para `Pendente` ou `Atrasada` conforme `atrasaEm`; se existir limpeza de checkout aberta, o flat volta para `AguardandoLimpeza`.
+7. Ao liberar manutencao sem limpeza de checkout aberta, o flat volta para `Livre`.
+8. Toda abertura e toda liberacao de manutencao precisam deixar trilha em `historicos_flat`.
 
 ## Contratos planejados
 
-### GET `/api/limpezas`
+### POST `/api/flats/:id/manutencao`
 
-Lista limpezas operacionais.
-
-Query params:
-
-```json
-{
-  "page": 1,
-  "pageSize": 10,
-  "tipo": "Semanal",
-  "status": "Pendente",
-  "flatId": 101,
-  "sortOrder": "desc"
-}
-```
-
-### POST `/api/limpezas/:id/concluir`
-
-Conclui manualmente uma limpeza.
+Inicia manutencao do flat.
 
 Body:
 
 ```json
 {
-  "observacoes": "Limpeza concluida e flat liberado."
+  "motivo": "Troca de chuveiro e revisao eletrica.",
+  "observacoes": "Nao liberar para reserva ate a vistoria final."
+}
+```
+
+Response:
+
+```json
+{
+  "flat": {
+    "id": 12,
+    "numero": "203",
+    "statusOperacional": "Manutencao"
+  },
+  "reservasAfetadas": [
+    {
+      "id": 88,
+      "status": "RequerRealocacao"
+    }
+  ],
+  "limpezasAfetadas": [
+    {
+      "id": 14,
+      "status": "Suspensa"
+    }
+  ]
+}
+```
+
+### POST `/api/flats/:id/manutencao/liberar`
+
+Libera a manutencao do flat.
+
+Body:
+
+```json
+{
+  "observacoes": "Servico concluido e flat liberado para operacao."
+}
+```
+
+Response:
+
+```json
+{
+  "flat": {
+    "id": 12,
+    "numero": "203",
+    "statusOperacional": "Livre"
+  },
+  "reservasAfetadas": [],
+  "limpezasAfetadas": [
+    {
+      "id": 14,
+      "status": "Atrasada"
+    }
+  ]
 }
 ```
 
 ## Decisoes tecnicas
 
-- O backend nao depende de scheduler nesta sprint: a sincronizacao operacional das limpezas acontece ao consultar ou concluir o modulo.
-- Limpeza de checkout e criada diretamente no fluxo da Sprint 8 para manter o contrato entre checkout e bloqueio do flat.
-- A identificacao idempotente de cada limpeza usa `chaveGeracao`, evitando duplicidade entre sincronizacoes.
-- O modelo persiste `dataProgramada`, `atrasaEm`, `concluidaEm` e `status` para permitir rastreabilidade operacional simples sem criar um submodulo de agenda.
+- O modulo aproveita a estrutura existente de `flats`, `reservas`, `limpezas` e `historicos_flat`, sem criar uma camada paralela de manutencao.
+- A sinalizacao `RequerRealocacao` vive no enum `StatusReserva` para ficar visivel para os consumidores do modulo de reservas.
+- A trilha auditavel da manutencao usa novos tipos de historico do flat, preservando o padrao que ja existe para check-in, checkout, transferencia e renovacao.
+- A reativacao das limpezas e calculada no momento da liberacao, sem scheduler adicional.

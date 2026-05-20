@@ -1,7 +1,7 @@
 import { AppError } from "../../shared/errors/app-error.js";
 import type { FlatStatus } from "../flats/flats.service.js";
 
-export type ReservaStatus = "Confirmada" | "Cancelada" | "NoShow";
+export type ReservaStatus = "Confirmada" | "RequerRealocacao" | "Cancelada" | "NoShow";
 
 export type ReservaSubcategoriaRecord = {
   id: number;
