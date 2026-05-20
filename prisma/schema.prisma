@@ -26,6 +26,37 @@ enum StatusReserva {
   NoShow
 }
 
+enum StatusEstadia {
+  Ativa
+  Encerrada
+}
+
+enum StatusCobranca {
+  Pendente
+  Paga
+  Cancelada
+}
+
+enum FormaPagamento {
+  Pix
+  Dinheiro
+  CartaoCredito
+  CartaoDebito
+  Transferencia
+}
+
+enum StatusCaixa {
+  Aberto
+  Fechado
+}
+
+enum TipoHistoricoFlat {
+  CheckIn
+  TransferenciaSaida
+  TransferenciaEntrada
+  Renovacao
+}
+
 model HospedeResponsavel {
   id             Int                    @id @default(autoincrement())
   nomeCompleto   String
@@ -40,7 +71,8 @@ model HospedeResponsavel {
   criadoEm       DateTime               @default(now())
   atualizadoEm   DateTime               @updatedAt
   acompanhantes  HospedeAcompanhante[]
-  reservas        Reserva[]
+  reservas       Reserva[]
+  estadias       Estadia[]
 
   @@index([ativo])
   @@index([nomeCompleto])
@@ -75,6 +107,7 @@ model SubcategoriaFlat {
   atualizadoEm    DateTime           @updatedAt
   flats           Flat[]
   reservas        Reserva[]
+  estadias        Estadia[]
 
   @@unique([categoriaId, nomeNormalizado])
   @@index([categoriaId])
@@ -96,6 +129,8 @@ model Flat {
   criadoEm           DateTime              @default(now())
   atualizadoEm       DateTime              @updatedAt
   reservas           Reserva[]
+  estadias           Estadia[]
+  historicos         HistoricoFlat[]
 
   @@index([categoriaId])
   @@index([subcategoriaId])
@@ -114,6 +149,7 @@ model HospedeAcompanhante {
   criadoEm              DateTime            @default(now())
   atualizadoEm          DateTime            @updatedAt
   reservas              ReservaHospede[]
+  estadias              EstadiaHospede[]
 
   @@index([hospedeResponsavelId])
   @@map("hospedes_acompanhantes")
@@ -140,6 +176,7 @@ model Reserva {
   criadoEm              DateTime               @default(now())
   atualizadoEm          DateTime               @updatedAt
   hospedes              ReservaHospede[]
+  estadia               Estadia?
 
   @@index([flatId, dataInicio, dataFim])
   @@index([hospedeResponsavelId])
@@ -160,6 +197,130 @@ model ReservaHospede {
   @@map("reservas_hospedes")
 }
 
+model Estadia {
+  id                    Int                  @id @default(autoincrement())
+  reservaId             Int?                 @unique
+  reserva               Reserva?             @relation(fields: [reservaId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  flatId                Int
+  flat                  Flat                 @relation(fields: [flatId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  subcategoriaId        Int
+  subcategoria          SubcategoriaFlat     @relation(fields: [subcategoriaId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  hospedeResponsavelId  Int
+  hospedeResponsavel    HospedeResponsavel   @relation(fields: [hospedeResponsavelId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  dataInicio            DateTime
+  dataFimPrevista       DateTime
+  dataFimEfetiva        DateTime?
+  status                StatusEstadia        @default(Ativa)
+  quantidadeHospedes    Int
+  cafeContratado        Boolean              @default(false)
+  valorBaseContratado   Decimal              @db.Decimal(10, 2)
+  valorCafePorPessoa    Decimal              @default(0) @db.Decimal(10, 2)
+  valorCafeContratado   Decimal              @default(0) @db.Decimal(10, 2)
+  valorTotalContratado  Decimal              @db.Decimal(10, 2)
+  observacoes           String?
+  criadoEm              DateTime             @default(now())
+  atualizadoEm          DateTime             @updatedAt
+  hospedes              EstadiaHospede[]
+  cobrancas             Cobranca[]
+  historicos            HistoricoFlat[]
+
+  @@index([flatId])
+  @@index([subcategoriaId])
+  @@index([hospedeResponsavelId])
+  @@index([status])
+  @@index([dataInicio])
+  @@map("estadias")
+}
+
+model EstadiaHospede {
+  estadiaId      Int
+  estadia        Estadia              @relation(fields: [estadiaId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  acompanhanteId Int
+  acompanhante   HospedeAcompanhante  @relation(fields: [acompanhanteId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  criadoEm       DateTime             @default(now())
+
+  @@id([estadiaId, acompanhanteId])
+  @@index([acompanhanteId])
+  @@map("estadias_hospedes")
+}
+
+model Cobranca {
+  id                Int             @id @default(autoincrement())
+  estadiaId         Int
+  estadia           Estadia         @relation(fields: [estadiaId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  competenciaInicio DateTime
+  competenciaFim    DateTime
+  valor             Decimal         @db.Decimal(10, 2)
+  status            StatusCobranca  @default(Pendente)
+  geradaEm          DateTime        @default(now())
+  liquidadaEm       DateTime?
+  criadoEm          DateTime        @default(now())
+  atualizadoEm      DateTime        @updatedAt
+  pagamentos        Pagamento[]
+
+  @@index([estadiaId])
+  @@index([status])
+  @@index([competenciaInicio])
+  @@map("cobrancas")
+}
+
+model Caixa {
+  id           Int          @id @default(autoincrement())
+  usuarioId    Int
+  usuario      Usuario      @relation(fields: [usuarioId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  status       StatusCaixa  @default(Aberto)
+  abertoEm     DateTime     @default(now())
+  fechadoEm    DateTime?
+  criadoEm     DateTime     @default(now())
+  atualizadoEm DateTime     @updatedAt
+  pagamentos   Pagamento[]
+
+  @@index([usuarioId])
+  @@index([status])
+  @@map("caixas")
+}
+
+model Pagamento {
+  id             Int             @id @default(autoincrement())
+  cobrancaId     Int
+  cobranca       Cobranca        @relation(fields: [cobrancaId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  usuarioId      Int
+  usuario        Usuario         @relation(fields: [usuarioId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  caixaId        Int
+  caixa          Caixa           @relation(fields: [caixaId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  formaPagamento FormaPagamento
+  valor          Decimal         @db.Decimal(10, 2)
+  comprovante    String?
+  criadoEm       DateTime        @default(now())
+  atualizadoEm   DateTime        @updatedAt
+
+  @@index([cobrancaId])
+  @@index([usuarioId])
+  @@index([caixaId])
+  @@index([formaPagamento])
+  @@map("pagamentos")
+}
+
+model HistoricoFlat {
+  id         Int                @id @default(autoincrement())
+  flatId     Int
+  flat       Flat               @relation(fields: [flatId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  estadiaId  Int?
+  estadia    Estadia?           @relation(fields: [estadiaId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  usuarioId  Int?
+  usuario    Usuario?           @relation(fields: [usuarioId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  tipo       TipoHistoricoFlat
+  descricao  String
+  metadata   Json?
+  criadoEm   DateTime           @default(now())
+
+  @@index([flatId])
+  @@index([estadiaId])
+  @@index([usuarioId])
+  @@index([tipo])
+  @@map("historicos_flat")
+}
+
 model Usuario {
   id                Int             @id @default(autoincrement())
   login             String
@@ -173,6 +334,9 @@ model Usuario {
   criadoEm          DateTime        @default(now())
   atualizadoEm      DateTime        @updatedAt
   refreshTokens     RefreshToken[]
+  caixas            Caixa[]
+  pagamentos        Pagamento[]
+  historicosFlat    HistoricoFlat[]
 
   @@map("usuarios")
 }
