@@ -2,7 +2,7 @@ import { z } from "zod";
 import { paginatedResponseSchema, paginationQuerySchema } from "../../shared/pagination/pagination.schema.js";
 import { flatStatusSchema } from "../flats/flats.schemas.js";
 
-export const reservaStatusSchema = z.enum(["Confirmada", "Cancelada", "NoShow"]);
+export const reservaStatusSchema = z.enum(["Confirmada", "RequerRealocacao", "Cancelada", "NoShow"]);
 
 const reservaSubcategoriaSchema = z.object({
   id: z.number().int().positive(),

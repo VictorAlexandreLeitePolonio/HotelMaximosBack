@@ -7,10 +7,13 @@ import { assertAdminUser, assertAllowedProfiles, getAuthenticatedUser } from "..
 import { PrismaFlatsRepository } from "./flats.repository.js";
 import {
   createFlatBodySchema,
+  flatMaintenanceResponseSchema,
   flatParamsSchema,
+  releaseFlatMaintenanceBodySchema,
   flatResponseSchema,
   flatsListQuerySchema,
   flatsListResponseSchema,
+  startFlatMaintenanceBodySchema,
   updateFlatBodySchema,
   updateFlatStatusBodySchema
 } from "./flats.schemas.js";
@@ -41,6 +44,56 @@ export const flatsRoutes: FastifyPluginAsyncZod = async (app) => {
       const requester = await getAuthenticatedUser(request, authRepository);
       assertAllowedProfiles(requester, readProfiles);
       return flatsService.list(request.query);
+    }
+  );
+
+  app.post(
+    "/:id/manutencao",
+    {
+      schema: {
+        tags: ["Flats"],
+        summary: "Inicia manutencao do flat e sinaliza impactos operacionais.",
+        params: flatParamsSchema,
+        body: startFlatMaintenanceBodySchema,
+        response: {
+          200: flatMaintenanceResponseSchema,
+          400: errorResponseSchema,
+          401: errorResponseSchema,
+          403: errorResponseSchema,
+          404: errorResponseSchema,
+          409: errorResponseSchema
+        }
+      }
+    },
+    async (request) => {
+      const requester = await getAuthenticatedUser(request, authRepository);
+      assertAdminUser(requester);
+      return flatsService.startMaintenance(request.params.id, requester, request.body);
+    }
+  );
+
+  app.post(
+    "/:id/manutencao/liberar",
+    {
+      schema: {
+        tags: ["Flats"],
+        summary: "Libera manutencao do flat e restaura o fluxo operacional.",
+        params: flatParamsSchema,
+        body: releaseFlatMaintenanceBodySchema,
+        response: {
+          200: flatMaintenanceResponseSchema,
+          400: errorResponseSchema,
+          401: errorResponseSchema,
+          403: errorResponseSchema,
+          404: errorResponseSchema,
+          409: errorResponseSchema
+        }
+      }
+    },
+    async (request) => {
+      const requester = await getAuthenticatedUser(request, authRepository);
+      assertAdminUser(requester);
+      return flatsService.releaseMaintenance(request.params.id, requester, request.body);
     }
   );
 

@@ -22,6 +22,7 @@ enum StatusOperacionalFlat {
 
 enum StatusReserva {
   Confirmada
+  RequerRealocacao
   Cancelada
   NoShow
 }
@@ -66,6 +67,8 @@ enum TipoHistoricoFlat {
   TransferenciaSaida
   TransferenciaEntrada
   Renovacao
+  ManutencaoIniciada
+  ManutencaoFinalizada
 }
 
 enum TipoLimpeza {

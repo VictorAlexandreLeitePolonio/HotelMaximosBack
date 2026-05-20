@@ -248,7 +248,7 @@ describe("FlatsService", () => {
     expect(result.subcategoriaId).toBe(2);
   });
 
-  it("updates operational status without changing the structural hierarchy", async () => {
+  it("updates non-maintenance operational status without changing the structural hierarchy", async () => {
     const repository = new FakeFlatsRepository();
     repository.categorias.push(createCategoria());
     repository.subcategorias.push(createSubcategoria());
@@ -266,9 +266,9 @@ describe("FlatsService", () => {
       atualizadoEm: new Date()
     });
 
-    const result = await new FlatsService(repository).updateStatus(1, "Manutencao");
+    const result = await new FlatsService(repository).updateStatus(1, "Reservado");
 
-    expect(result.statusOperacional).toBe("Manutencao");
+    expect(result.statusOperacional).toBe("Reservado");
     expect(repository.flats[0].categoriaId).toBe(1);
     expect(repository.flats[0].subcategoriaId).toBe(1);
   });
