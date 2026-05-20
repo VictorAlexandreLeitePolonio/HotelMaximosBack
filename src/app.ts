@@ -14,6 +14,7 @@ import { registerErrorHandler } from "./shared/errors/error-handler.js";
 import { authRoutes } from "./modules/auth/auth.routes.js";
 import { caixasRoutes } from "./modules/caixas/caixas.routes.js";
 import { categoriasRoutes } from "./modules/categorias/categorias.routes.js";
+import { checkoutsRoutes } from "./modules/checkouts/checkouts.routes.js";
 import { estadiasRoutes } from "./modules/estadias/estadias.routes.js";
 import { financeiroRoutes } from "./modules/financeiro/financeiro.routes.js";
 import { flatsRoutes } from "./modules/flats/flats.routes.js";
@@ -93,6 +94,7 @@ export async function buildApp(): Promise<FastifyInstance> {
         { name: "Auth", description: "Endpoints de autenticacao." },
         { name: "Caixas", description: "Endpoints operacionais de abertura, fechamento e ajustes de caixa." },
         { name: "Categorias", description: "Endpoints de gestao de categorias." },
+        { name: "Checkouts", description: "Endpoints de checkout, recibo final e transicao do flat para limpeza." },
         { name: "Estadias", description: "Endpoints operacionais de check-in e estadias ativas." },
         { name: "Financeiro", description: "Endpoints de cobranças, pagamentos e extras." },
         { name: "Flats", description: "Endpoints de gestao de flats." },
@@ -117,6 +119,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(authRoutes, { prefix: "/api/auth" });
   await app.register(caixasRoutes, { prefix: "/api" });
   await app.register(categoriasRoutes, { prefix: "/api/categorias" });
+  await app.register(checkoutsRoutes, { prefix: "/api" });
   await app.register(estadiasRoutes, { prefix: "/api" });
   await app.register(financeiroRoutes, { prefix: "/api" });
   await app.register(flatsRoutes, { prefix: "/api/flats" });

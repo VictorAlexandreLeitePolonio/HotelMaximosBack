@@ -62,6 +62,7 @@ enum StatusEstadiaExtra {
 
 enum TipoHistoricoFlat {
   CheckIn
+  CheckOut
   TransferenciaSaida
   TransferenciaEntrada
   Renovacao
