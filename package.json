@@ -18,6 +18,7 @@
     "prisma:studio": "prisma studio"
   },
   "dependencies": {
+    "@fastify/multipart": "^9.2.1",
     "@fastify/swagger": "^9.5.1",
     "@fastify/swagger-ui": "^5.2.3",
     "@prisma/client": "^6.7.0",

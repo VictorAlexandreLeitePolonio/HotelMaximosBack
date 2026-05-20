@@ -1,6 +1,7 @@
 import type { FastifyError, FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { ZodError } from "zod";
 import { AppError } from "./app-error.js";
+import { comprovanteTooLargeError } from "../uploads/comprovantes.storage.js";
 
 export function registerErrorHandler(app: FastifyInstance): void {
   app.setErrorHandler(
@@ -27,6 +28,19 @@ export function registerErrorHandler(app: FastifyInstance): void {
             message: "Dados inválidos.",
             traceId,
             details: error.flatten()
+          }
+        });
+      }
+
+      if (error.code === "FST_REQ_FILE_TOO_LARGE") {
+        const uploadError = comprovanteTooLargeError();
+        request.log.warn({ err: error, traceId }, "Multipart upload too large");
+        return reply.status(uploadError.statusCode).send({
+          error: {
+            code: uploadError.code,
+            message: uploadError.message,
+            traceId,
+            details: uploadError.details
           }
         });
       }
