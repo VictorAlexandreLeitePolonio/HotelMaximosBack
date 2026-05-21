@@ -7,6 +7,12 @@ const envSchema = z.object({
   DATABASE_URL: z.string().url(),
   JWT_SECRET: z.string().min(32, "JWT_SECRET deve ter pelo menos 32 caracteres."),
   JWT_EXPIRES_IN: z.string().default("15m"),
+  CORS_ALLOWED_ORIGINS: z.string().default("").transform((value) =>
+    value
+      .split(",")
+      .map((origin) => origin.trim())
+      .filter(Boolean)
+  ),
   UPLOADS_DIR: z.string().default("storage"),
   COMPROVANTE_MAX_FILE_SIZE_BYTES: z.coerce.number().int().positive().default(5 * 1024 * 1024)
 });
@@ -14,6 +20,21 @@ const envSchema = z.object({
 export type Env = z.infer<typeof envSchema>;
 
 export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
+  const nodeEnv = source.NODE_ENV ?? "development";
+  const localCorsOrigins = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173"
+  ].join(",");
+
+  const corsDefaults =
+    source.CORS_ALLOWED_ORIGINS === undefined && nodeEnv !== "production"
+      ? {
+          CORS_ALLOWED_ORIGINS: localCorsOrigins
+        }
+      : {};
+
   const testDefaults =
     source.NODE_ENV === "test"
       ? {
@@ -23,6 +44,7 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
       : {};
 
   return envSchema.parse({
+    ...corsDefaults,
     ...testDefaults,
     ...source
   });

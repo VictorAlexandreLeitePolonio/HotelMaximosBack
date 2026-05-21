@@ -20,9 +20,12 @@ PORT=3333
 DATABASE_URL=postgresql://hotel_maximos:hotel_maximos@localhost:5432/hotel_maximos
 JWT_SECRET=troque-por-um-segredo-local-com-32-caracteres
 JWT_EXPIRES_IN=15m
+CORS_ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
 ```
 
 Arquivos `.env`, `.env.*` e `.env.example` ficam ignorados pelo Git por decisao do projeto.
+
+Em `development` e `test`, quando `CORS_ALLOWED_ORIGINS` nao for informado, a API libera apenas origens locais conhecidas. Em `production`, nenhuma origem de browser e liberada por padrao; configure explicitamente a lista separada por virgula.
 
 ## Banco local
 
@@ -90,4 +93,7 @@ Esse seed e local/MVP-only e deve ser removido ou substituido por provisionament
 
 - Erros seguem o formato `{ error: { code, message, traceId, details? } }`.
 - Respostas paginadas devem usar `{ data, meta: { page, pageSize, total, totalPages } }`.
+- Toda resposta devolve `x-trace-id` no header e aceita `x-trace-id` de entrada para facilitar QA, suporte e correlacao de logs.
+- CORS usa allowlist por `CORS_ALLOWED_ORIGINS`; a API nao reflete qualquer `Origin` com credenciais.
+- Endpoints protegidos ficam documentados no Swagger com autenticacao Bearer JWT.
 - Logs usam o logger do Fastify/Pino e redigem tokens, senhas e headers de autorizacao.

@@ -52,15 +52,28 @@ export async function buildApp(): Promise<FastifyInstance> {
     }
   }).withTypeProvider<ZodTypeProvider>();
 
+  app.addHook("onRoute", (routeOptions) => {
+    if (!routeOptions.url.startsWith("/api") || isPublicApiRoute(routeOptions.url)) {
+      return;
+    }
+
+    routeOptions.schema = {
+      ...(routeOptions.schema ?? {}),
+      security: routeOptions.schema?.security ?? [{ bearerAuth: [] }]
+    };
+  });
+
   app.addHook("onRequest", async (request, reply) => {
     const origin = request.headers.origin;
 
-    if (origin) {
+    if (origin && env.CORS_ALLOWED_ORIGINS.includes(origin)) {
       reply.header("Access-Control-Allow-Origin", origin);
       reply.header("Vary", "Origin");
+      reply.header("Access-Control-Allow-Credentials", "true");
+      reply.header("Access-Control-Expose-Headers", "x-trace-id");
     }
 
-    reply.header("Access-Control-Allow-Credentials", "true");
+    reply.header("x-trace-id", request.id);
     reply.header("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS");
     reply.header(
       "Access-Control-Allow-Headers",
@@ -108,7 +121,16 @@ export async function buildApp(): Promise<FastifyInstance> {
         { name: "Subcategorias", description: "Endpoints de gestao de subcategorias, valores e capacidade." },
         { name: "Users", description: "Endpoints de gestao de usuarios." }
       ],
-      components: {}
+      components: {
+        securitySchemes: {
+          bearerAuth: {
+            type: "http",
+            scheme: "bearer",
+            bearerFormat: "JWT",
+            description: "Use o header Authorization: Bearer <accessToken>."
+          }
+        }
+      }
     },
     transform: jsonSchemaTransform
   });
@@ -135,4 +157,8 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(usersRoutes, { prefix: "/api/users" });
 
   return app;
+}
+
+function isPublicApiRoute(url: string): boolean {
+  return url === "/api/health" || url === "/api/auth/login" || url === "/api/auth/refresh";
 }
