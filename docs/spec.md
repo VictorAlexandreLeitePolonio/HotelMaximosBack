@@ -1,43 +1,114 @@
-# Sprint 10: Manutencao e bloqueios
+# Sprint 11: Dashboards, avisos e auditoria
 
 ## Objetivo
 
-Entregar o backend operacional do bloqueio de flats em manutencao, com reflexo imediato em reservas pendentes, limpezas abertas e historico automatico do flat.
+Entregar o backend da Sprint 11 com visao operacional, visao financeira, avisos acionaveis, `NoShow` manual e trilha auditavel para eventos operacionais e observacoes administrativas do flat.
 
 ## Escopo tecnico
 
-- Bloquear manualmente um flat em manutencao por endpoint dedicado.
-- Liberar manualmente a manutencao com restauracao do fluxo operacional coerente.
-- Impedir que o endpoint generico de status burle as regras da sprint ao entrar ou sair de `Manutencao`.
-- Bloquear novas reservas e check-ins em flat em manutencao pelo contrato ja existente dos modulos operacionais.
-- Marcar reservas pendentes afetadas como `RequerRealocacao`.
-- Suspender limpezas abertas do flat enquanto a manutencao estiver vigente.
-- Reativar limpezas suspensas para `Pendente` ou `Atrasada` quando a manutencao for liberada.
-- Registrar historico automatico de inicio e liberacao da manutencao.
+- Expor um Dashboard Operacional para consumo com polling de 30 segundos no frontend.
+- Expor um Dashboard Financeiro restrito a `Admin`.
+- Gerar avisos de limpeza, vencimento de estadia e check-in atrasado.
+- Permitir a acao manual de `NoShow` sem automacao silenciosa.
+- Permitir observacoes operacionais imutaveis no historico do flat.
+- Permitir correcoes e cancelamentos administrativos auditaveis sobre observacoes operacionais.
+- Expor listagem paginada do historico do flat para consulta operacional.
 
 ## Regras de negocio
 
-1. A abertura de manutencao e manual e muda imediatamente o `statusOperacional` do flat para `Manutencao`.
-2. Nao e permitido iniciar manutencao em flat com estadia ativa.
-3. Reservas afetadas sao as reservas do flat ainda sem check-in, com status `Confirmada` e `dataFim` futura no momento da abertura da manutencao.
-4. Toda reserva afetada passa para `RequerRealocacao` e deixa de ser elegivel para check-in direto a partir daquele contrato.
-5. Limpezas abertas do flat ficam `Suspensa` enquanto o flat permanecer em manutencao.
-6. Ao liberar manutencao, a limpeza aberta volta para `Pendente` ou `Atrasada` conforme `atrasaEm`; se existir limpeza de checkout aberta, o flat volta para `AguardandoLimpeza`.
-7. Ao liberar manutencao sem limpeza de checkout aberta, o flat volta para `Livre`.
-8. Toda abertura e toda liberacao de manutencao precisam deixar trilha em `historicos_flat`.
+1. O Dashboard Operacional e somente leitura no backend; o polling de 30 segundos e responsabilidade do frontend.
+2. Aviso de check-in atrasado considera reservas `Confirmada`, ainda sem estadia vinculada, com `dataInicio` anterior ao inicio do dia operacional em `America/Sao_Paulo`.
+3. Aviso de vencimento considera estadias `Ativa` cuja `dataFimPrevista` ja venceu ou vence em ate 3 dias corridos, contando a partir da data operacional de referencia.
+4. Aviso de limpeza considera limpezas abertas: `Atrasada` gera severidade critica, `Pendente` e `Suspensa` permanecem avisos operacionais.
+5. A reserva so pode virar `NoShow` manualmente quando ainda estiver `Confirmada`, sem estadia vinculada, e ja configurar check-in atrasado pela regra da sprint.
+6. A acao de `NoShow` exige `motivo` e gera entrada automatica em `historicos_flat`.
+7. Observacao operacional de recepcao nao e editada nem excluida em linha; ela nasce como evento imutavel em `historicos_flat`.
+8. Correcao ou cancelamento administrativo nao reescreve a observacao original; cria novo evento auditavel com referencia explicita ao historico original.
+9. Correcao e cancelamento administrativo exigem `motivo` e ficam restritos a `Admin`.
+10. O Dashboard Financeiro fica restrito a `Admin` e usa os modulos ja existentes de `cobrancas`, `extras`, `pagamentos` e `caixas`, sem criar consolidacao paralela.
 
 ## Contratos planejados
 
-### POST `/api/flats/:id/manutencao`
+### GET `/api/dashboards/operacional`
 
-Inicia manutencao do flat.
+Retorna o resumo operacional e os avisos ativos para o momento da consulta.
+
+Response:
+
+```json
+{
+  "generatedAt": "2026-05-21T12:00:00.000Z",
+  "resumo": {
+    "flatsPorStatus": {
+      "Livre": 18,
+      "Reservado": 4,
+      "Ocupado": 21,
+      "AguardandoLimpeza": 3,
+      "Manutencao": 2
+    },
+    "estadiasAtivas": 21,
+    "checkInsHoje": 5,
+    "checkInsAtrasados": 2,
+    "reservasRequerRealocacao": 1,
+    "limpezasAbertas": 4
+  },
+  "avisos": [
+    {
+      "tipo": "CheckInAtrasado",
+      "severidade": "warning",
+      "titulo": "Check-in atrasado para a reserva 91",
+      "descricao": "Reserva do flat 203 aguardando acao manual da recepcao.",
+      "referencia": {
+        "flatId": 12,
+        "reservaId": 91,
+        "estadiaId": null,
+        "limpezaId": null
+      },
+      "ocorridoEm": "2026-05-20T15:00:00.000Z"
+    }
+  ]
+}
+```
+
+### GET `/api/dashboards/financeiro`
+
+Retorna o resumo financeiro administrativo do dia operacional.
+
+Response:
+
+```json
+{
+  "generatedAt": "2026-05-21T12:00:00.000Z",
+  "resumo": {
+    "totalCobrancasPendentes": 6,
+    "valorCobrancasPendentes": 7420,
+    "totalExtrasPendentes": 3,
+    "valorExtrasPendentes": 280,
+    "totalPagamentosHoje": 9,
+    "valorPagamentosHoje": 3910,
+    "totalCaixasAbertos": 2,
+    "totalCaixasFechadosHoje": 1
+  },
+  "pagamentosHojePorForma": [
+    {
+      "formaPagamento": "Pix",
+      "quantidade": 4,
+      "valor": 1820
+    }
+  ]
+}
+```
+
+### POST `/api/reservas/:id/no-show`
+
+Marca manualmente uma reserva atrasada como `NoShow`.
 
 Body:
 
 ```json
 {
-  "motivo": "Troca de chuveiro e revisao eletrica.",
-  "observacoes": "Nao liberar para reserva ate a vistoria final."
+  "motivo": "Hospede confirmou que nao viria mais.",
+  "observacoes": "Contato realizado pela recepcao as 09:15."
 }
 ```
 
@@ -45,60 +116,66 @@ Response:
 
 ```json
 {
-  "flat": {
-    "id": 12,
-    "numero": "203",
-    "statusOperacional": "Manutencao"
+  "reserva": {
+    "id": 91,
+    "status": "NoShow"
   },
-  "reservasAfetadas": [
-    {
-      "id": 88,
-      "status": "RequerRealocacao"
-    }
-  ],
-  "limpezasAfetadas": [
-    {
-      "id": 14,
-      "status": "Suspensa"
-    }
-  ]
+  "historico": {
+    "tipo": "NoShowManual",
+    "descricao": "Reserva marcada manualmente como no-show.",
+    "flatId": 12
+  }
 }
 ```
 
-### POST `/api/flats/:id/manutencao/liberar`
+### GET `/api/flats/:id/historico`
 
-Libera a manutencao do flat.
+Lista paginada do historico operacional e auditavel do flat.
+
+### POST `/api/flats/:id/observacoes-operacionais`
+
+Cria uma observacao operacional imutavel no historico do flat.
 
 Body:
 
 ```json
 {
-  "observacoes": "Servico concluido e flat liberado para operacao."
+  "descricao": "Hospede pediu contato com manutencao se o ar parar novamente.",
+  "observacoes": "Recado registrado durante a ronda da tarde."
 }
 ```
 
-Response:
+### POST `/api/flats/:id/observacoes-operacionais/:historicoId/corrigir`
+
+Cria uma correcao administrativa auditavel para uma observacao operacional existente.
+
+Body:
 
 ```json
 {
-  "flat": {
-    "id": 12,
-    "numero": "203",
-    "statusOperacional": "Livre"
-  },
-  "reservasAfetadas": [],
-  "limpezasAfetadas": [
-    {
-      "id": 14,
-      "status": "Atrasada"
-    }
-  ]
+  "descricaoCorrigida": "Hospede pediu contato com manutencao apenas se o ar parar novamente durante a noite.",
+  "motivo": "Complemento necessario apos revisar o relato da recepcao.",
+  "observacoes": "Correcao autorizada pela administracao."
+}
+```
+
+### POST `/api/flats/:id/observacoes-operacionais/:historicoId/cancelar`
+
+Cancela administrativamente uma observacao operacional por meio de novo evento auditavel.
+
+Body:
+
+```json
+{
+  "motivo": "Observacao registrada no flat errado.",
+  "observacoes": "Recado sera relancado no flat correto."
 }
 ```
 
 ## Decisoes tecnicas
 
-- O modulo aproveita a estrutura existente de `flats`, `reservas`, `limpezas` e `historicos_flat`, sem criar uma camada paralela de manutencao.
-- A sinalizacao `RequerRealocacao` vive no enum `StatusReserva` para ficar visivel para os consumidores do modulo de reservas.
-- A trilha auditavel da manutencao usa novos tipos de historico do flat, preservando o padrao que ja existe para check-in, checkout, transferencia e renovacao.
-- A reativacao das limpezas e calculada no momento da liberacao, sem scheduler adicional.
+- O modulo reaproveita `flats`, `reservas`, `estadias`, `limpezas`, `financeiro`, `caixas` e `historicos_flat`, sem criar uma camada paralela de auditoria.
+- O `Dashboard Operacional` agrega leituras prontas para o frontend, mas nao move estado sozinho.
+- O `NoShow` manual altera apenas a reserva alvo e registra o evento em `historicos_flat`.
+- Observacoes operacionais, correcoes e cancelamentos administrativos usam novos tipos de historico para manter o fluxo append-only.
+- O dia operacional e calculado no timezone `America/Sao_Paulo` para avisos e totais diarios do dashboard.
