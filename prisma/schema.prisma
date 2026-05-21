@@ -69,6 +69,10 @@ enum TipoHistoricoFlat {
   Renovacao
   ManutencaoIniciada
   ManutencaoFinalizada
+  NoShowManual
+  ObservacaoOperacional
+  ObservacaoOperacionalCorrigida
+  ObservacaoOperacionalCancelada
 }
 
 enum TipoLimpeza {
