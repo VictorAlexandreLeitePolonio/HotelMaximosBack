@@ -82,7 +82,7 @@ typings/
 # dotenv environment variables files
 .env
 .env.*
-.env.example
+!.env.example
 
 # .NET build output
 bin/

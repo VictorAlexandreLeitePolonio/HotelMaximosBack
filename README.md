@@ -23,7 +23,7 @@ JWT_EXPIRES_IN=15m
 CORS_ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
 ```
 
-Arquivos `.env`, `.env.*` e `.env.example` ficam ignorados pelo Git por decisao do projeto.
+Arquivos `.env` e `.env.*` ficam ignorados pelo Git. O `.env.example` fica versionado porque nao contem segredos.
 
 Em `development` e `test`, quando `CORS_ALLOWED_ORIGINS` nao for informado, a API libera apenas origens locais conhecidas. Em `production`, nenhuma origem de browser e liberada por padrao; configure explicitamente a lista separada por virgula.
 
@@ -77,6 +77,32 @@ npm run build
 npm run test
 docker compose config
 ```
+
+## Deploy no Railway
+
+O arquivo `railway.json` define:
+
+- build: `npm ci && npm run build`
+- start: `npm run start:railway`
+- healthcheck: `/api/health`
+
+Configure as variaveis no servico do backend:
+
+```txt
+NODE_ENV=production
+HOST=0.0.0.0
+PORT=${{RAILWAY_PORT}}
+DATABASE_URL=${{Postgres.DATABASE_URL}}
+JWT_SECRET=<gere-um-segredo-forte-com-32+ caracteres>
+JWT_EXPIRES_IN=15m
+CORS_ALLOWED_ORIGINS=https://<seu-front>.vercel.app
+UPLOADS_DIR=storage
+COMPROVANTE_MAX_FILE_SIZE_BYTES=5242880
+```
+
+Crie tambem um servico PostgreSQL no mesmo projeto Railway e referencie o `DATABASE_URL` dele no backend. As migrations rodam automaticamente no start via `prisma migrate deploy`.
+
+Se usar upload de comprovantes em producao, adicione um Volume no Railway e monte no caminho usado por `UPLOADS_DIR`; sem volume, arquivos enviados podem ser perdidos entre deploys/restarts.
 
 ## Endpoints base
 
